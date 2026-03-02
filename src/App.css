@@ -98,6 +98,7 @@ body {
   transition: border-color 0.25s, box-shadow 0.25s;
   display: flex;
   flex-direction: column;
+  contain: strict;
 }
 
 .custom-node:hover {

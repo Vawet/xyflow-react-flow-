@@ -78,13 +78,15 @@ export function generateEdges(nodeCount: number): Edge[] {
 
     const edgeType = randomPick([...EDGE_TYPES]);
     const duration = 2 + (edges.length % 30) / 10;
+    const useCustom = nodeCount < 500;
 
     edges.push({
       id: `edge-${edges.length}`,
       source: `node-${source}`,
       target: `node-${target}`,
-      type: 'animated',
+      type: useCustom ? 'animated' : 'default',
       data: { edgeType, duration },
+      style: useCustom ? undefined : { stroke: edgeType === 'variant' ? '#22c55e' : edgeType === 'fusion' ? '#f97316' : '#3b82f6', strokeWidth: 1.5, opacity: 0.5 },
     });
   }
 

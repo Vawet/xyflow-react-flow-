@@ -4,10 +4,11 @@ import { useZoomLod, type LodLevel } from '../contexts/ZoomLodContext';
 
 const CompareNode = memo(({ data, selected, width }: NodeProps) => {
   const d = data as Record<string, any>;
-  const { zoom } = useZoomLod();
+  const { zoom, nodeCount } = useZoomLod();
   const nodeW = width || 280;
   const effectiveW = nodeW * zoom;
   const lod: LodLevel = effectiveW >= 150 ? 'high' : effectiveW >= 50 ? 'medium' : 'low';
+  const lite = nodeCount >= 500;
 
   const [srcA, srcB] = useMemo(() => {
     if (lod === 'low') return ['', ''];
@@ -46,20 +47,19 @@ const CompareNode = memo(({ data, selected, width }: NodeProps) => {
       {lod !== 'low' && (
         <div className="node-body">
           <div className="node-title">{d.title}</div>
-          {lod === 'high' && (
+          {!lite && lod === 'high' && (
             <div className="node-tags">
               {(d.tags as string[]).map((tag: string, i: number) => (
                 <span key={i} className="tag">{tag}</span>
               ))}
             </div>
           )}
-          <div className="node-status">
-            <span className="credits">{d.credits} 积分</span>
-            <span className="gen-time">{d.genTime}</span>
-          </div>
-          <div className="progress-bar">
-            <div className="progress-fill" style={{ width: `${d.progress}%` }} />
-          </div>
+          {!lite && (
+            <div className="node-status">
+              <span className="credits">{d.credits} 积分</span>
+              <span className="gen-time">{d.genTime}</span>
+            </div>
+          )}
         </div>
       )}
       <Handle type="source" position={Position.Right} />
