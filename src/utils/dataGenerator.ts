@@ -62,7 +62,7 @@ export function generateNodes(count: number): Node[] {
 
 export function generateEdges(nodeCount: number): Edge[] {
   const edges: Edge[] = [];
-  const edgeCount = Math.floor(nodeCount * 0.3);
+  const edgeCount = Math.min(Math.floor(nodeCount * 0.3), 150);
   const usedPairs = new Set<string>();
   let attempts = 0;
   const maxAttempts = edgeCount * 5;

@@ -7,7 +7,7 @@
 html, body, #root {
   width: 100%;
   height: 100%;
-  overflow: hidden;
+  overflow: auto;
   background: #08080f;
 }
 
@@ -347,6 +347,18 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+.fps-stat.renderer-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(99, 102, 241, 0.12);
+  color: #a5b4fc;
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
 /* ==================== Control Panel ==================== */
 
 .control-panel {
@@ -637,4 +649,210 @@ body {
 .modal-content::-webkit-scrollbar-thumb {
   background: #2a2a3e;
   border-radius: 3px;
+}
+
+/* ==================== LOD: Level of Detail ==================== */
+
+.thumbnail-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #1e1e3a 0%, #2a2a4a 100%);
+}
+
+.thumbnail-placeholder.video-placeholder {
+  background: linear-gradient(135deg, #2a1a10 0%, #3a2a1a 100%);
+}
+
+.thumbnail-placeholder.compare-placeholder {
+  background: linear-gradient(135deg, #0a2a1a 0%, #1a3a2a 100%);
+}
+
+.custom-node.lod-low {
+  animation: none !important;
+  box-shadow: none !important;
+  transition: none !important;
+  border-color: #1a1a2e;
+}
+
+.custom-node.lod-low:hover {
+  border-color: #1a1a2e;
+}
+
+.custom-node.lod-low .node-hover-actions {
+  display: none !important;
+}
+
+.custom-node.lod-medium {
+  animation: none !important;
+  box-shadow: none !important;
+}
+
+.custom-node.lod-medium .node-hover-actions {
+  display: none !important;
+}
+
+.custom-node.lod-medium:hover {
+  border-color: #1e1e32;
+}
+
+.lod-low .react-flow__edge-interaction {
+  display: none !important;
+}
+
+/* ==================== Home Link ==================== */
+
+.home-link {
+  position: absolute;
+  bottom: 14px;
+  right: 14px;
+  z-index: 10;
+  padding: 6px 14px;
+  background: rgba(14, 14, 28, 0.92);
+  border: 1px solid #1e1e32;
+  border-radius: 8px;
+  color: #aaa;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 500;
+  backdrop-filter: blur(8px);
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.home-link:hover {
+  color: #fff;
+  border-color: #6366f1;
+}
+
+/* ==================== Pixi Container ==================== */
+
+.pixi-container {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.pixi-container canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* ==================== Home Page ==================== */
+
+.home-page {
+  width: 100vw;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  background: radial-gradient(ellipse at 50% 30%, #12122a 0%, #08080f 70%);
+}
+
+.home-header {
+  text-align: center;
+  margin-bottom: 48px;
+}
+
+.home-title {
+  font-size: 36px;
+  font-weight: 800;
+  color: #f0f0f0;
+  margin-bottom: 10px;
+  letter-spacing: -0.5px;
+}
+
+.home-subtitle {
+  font-size: 15px;
+  color: #777;
+  max-width: 440px;
+}
+
+.home-cards {
+  display: flex;
+  gap: 24px;
+  max-width: 720px;
+  width: 100%;
+}
+
+.home-card {
+  flex: 1;
+  background: #14142a;
+  border: 1px solid #1e1e32;
+  border-radius: 16px;
+  padding: 28px 24px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.25s, transform 0.2s, box-shadow 0.25s;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.home-card:hover {
+  border-color: #6366f1;
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(99, 102, 241, 0.12);
+}
+
+.card-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.rf-icon {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+}
+
+.pixi-icon {
+  background: linear-gradient(135deg, #f97316, #eab308);
+}
+
+.home-card h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #f0f0f0;
+}
+
+.home-card p {
+  font-size: 13px;
+  color: #888;
+  line-height: 1.5;
+}
+
+.card-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.card-tags span {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(99, 102, 241, 0.1);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.card-limit {
+  font-size: 11px;
+  color: #555;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid #1e1e32;
+}
+
+@media (max-width: 640px) {
+  .home-cards {
+    flex-direction: column;
+  }
 }

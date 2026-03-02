@@ -6,9 +6,10 @@ interface ControlPanelProps {
   virtualization: boolean;
   onVirtualizationChange: (v: boolean) => void;
   onShuffle: () => void;
+  nodeCounts?: number[];
 }
 
-const NODE_COUNTS = [100, 500, 1000, 2000];
+const DEFAULT_COUNTS = [100, 500, 1000, 2000, 5000];
 
 const ControlPanel = memo(({
   nodeCount,
@@ -16,21 +17,22 @@ const ControlPanel = memo(({
   virtualization,
   onVirtualizationChange,
   onShuffle,
+  nodeCounts = DEFAULT_COUNTS,
 }: ControlPanelProps) => {
   return (
     <div className="control-panel">
-      <div className="panel-title">Control Panel</div>
+      <div className="panel-title">React Flow Control</div>
 
       <div className="panel-section">
         <label className="section-label">Node Count</label>
         <div className="btn-group">
-          {NODE_COUNTS.map((count) => (
+          {nodeCounts.map((count) => (
             <button
               key={count}
               className={nodeCount === count ? 'active' : ''}
               onClick={() => onNodeCountChange(count)}
             >
-              {count}
+              {count >= 1000 ? `${count / 1000}k` : count}
             </button>
           ))}
         </div>

@@ -3,9 +3,11 @@ import { useEffect, useRef, useState, memo } from 'react';
 interface FpsMonitorProps {
   nodeCount: number;
   edgeCount: number;
+  rendererType?: string;
+  visibleNodes?: number;
 }
 
-const FpsMonitor = memo(({ nodeCount, edgeCount }: FpsMonitorProps) => {
+const FpsMonitor = memo(({ nodeCount, edgeCount, rendererType, visibleNodes }: FpsMonitorProps) => {
   const [fps, setFps] = useState(0);
   const [frameTime, setFrameTime] = useState(0);
   const rafRef = useRef(0);
@@ -37,7 +39,10 @@ const FpsMonitor = memo(({ nodeCount, edgeCount }: FpsMonitorProps) => {
   return (
     <div className="fps-monitor">
       <div className="fps-value" style={{ color: fpsColor }}>{fps} <span className="fps-unit">FPS</span></div>
-      <div className="fps-stat">Nodes: {nodeCount}</div>
+      {rendererType && <div className="fps-stat renderer-tag">{rendererType}</div>}
+      <div className="fps-stat">
+        Nodes: {visibleNodes !== undefined ? `${visibleNodes} / ${nodeCount}` : nodeCount}
+      </div>
       <div className="fps-stat">Edges: {edgeCount}</div>
       <div className="fps-stat">Frame: {frameTime}ms</div>
     </div>

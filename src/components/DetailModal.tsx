@@ -1,8 +1,7 @@
 import { memo } from 'react';
-import type { Node } from '@xyflow/react';
 
 interface DetailModalProps {
-  node: Node;
+  node: { type?: string; data: Record<string, any> };
   onClose: () => void;
 }
 
