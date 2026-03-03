@@ -7,7 +7,7 @@ import { getThumbnailUrl } from '../utils/getThumbnailUrl';
 const nodePropsEqual = (prev: NodeProps, next: NodeProps) =>
   prev.selected === next.selected && prev.data === next.data;
 
-const ImageNode = memo(({ data, selected }: NodeProps) => {
+const ImageNode = memo(({ id, data, selected }: NodeProps) => {
   const d = data as Record<string, any>;
   const lod = useLodLevel();
   const nodeCount = useNodeCount();
@@ -15,7 +15,7 @@ const ImageNode = memo(({ data, selected }: NodeProps) => {
 
   const rawUrl = useMemo(() => getThumbnailUrl(d.imageId, lod), [lod, d.imageId]);
 
-  const { src, loaded, error } = useCachedImage(rawUrl);
+  const { src, loaded, error, handleElementError } = useCachedImage(rawUrl, `${id}:${d.imageId}`);
 
   return (
     <div className={`custom-node lod-${lod} ${selected ? 'selected' : ''}`}>
@@ -30,10 +30,13 @@ const ImageNode = memo(({ data, selected }: NodeProps) => {
       )}
       <Handle type="target" position={Position.Left} />
       <div className={`node-thumbnail ${!loaded && lod !== 'low' ? 'loading' : ''}`}>
-        {lod === 'low' || error ? (
+        {lod === 'low' || error || !src ? (
           <div className="thumbnail-placeholder" />
         ) : (
-          <img src={src} alt={d.title} draggable={false} />
+          <img src={src} alt={d.title} draggable={false} onError={handleElementError} />
+        )}
+        {lod !== 'low' && !src && (
+          <div className="img-debug-badge">MISS img:{String(d.imageId)} {lod}</div>
         )}
       </div>
       {lod !== 'low' && (

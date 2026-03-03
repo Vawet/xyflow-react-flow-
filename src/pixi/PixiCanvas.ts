@@ -66,6 +66,7 @@ export class PixiCanvas {
   private _ready = false;
   private _destroyed = false;
   private _currentLod: PixiLod = 'high';
+  private formSeq = 0;
 
   cullingEnabled = true;
   edgeAnimationEnabled = true;
@@ -164,7 +165,9 @@ export class PixiCanvas {
     if (!this.texturePool.length) return;
     const len = this.texturePool.length;
     for (const node of this.nodes) {
-      if (node.data.type === 'video' && this.videoTexture) {
+      if (node.data.type === 'form') {
+        continue;
+      } else if (node.data.type === 'video' && this.videoTexture) {
         node.setTexture(this.videoTexture);
       } else if (node.data.type === 'compare') {
         const idx = node.data.imageId % len;
@@ -413,6 +416,27 @@ export class PixiCanvas {
 
     const cols = count <= 500 ? 10 : count <= 2000 ? 20 : 30;
 
+    const formData: NodeData = {
+      id: 'canvas-form-node',
+      type: 'form',
+      title: '拖拽这个表单节点',
+      tags: [],
+      credits: 0,
+      genTime: '-',
+      progress: 0,
+      imageId: 0,
+      imageId2: 1,
+      x: 80,
+      y: 80,
+      formA: '',
+      formB: '',
+      formC: '',
+    };
+    const formSprite = new NodeSprite(formData);
+    this.nodeLayer.addChild(formSprite);
+    this.nodes.push(formSprite);
+    this.nodeMap.set(formData.id, formSprite);
+
     for (let i = 0; i < count; i++) {
       const rand = Math.random();
       const type: NodeData['type'] = rand < 0.6 ? 'image' : rand < 0.85 ? 'video' : 'compare';
@@ -453,6 +477,17 @@ export class PixiCanvas {
       });
     }
 
+    if (count > 1) {
+      this.edges.push(
+        { source: 'canvas-form-node', target: 'node-0', edgeType: 'reference', particleT: Math.random(), duration: 2.5 },
+        { source: 'node-1', target: 'canvas-form-node', edgeType: 'variant', particleT: Math.random(), duration: 2.8 },
+      );
+    } else if (count === 1) {
+      this.edges.push(
+        { source: 'canvas-form-node', target: 'node-0', edgeType: 'reference', particleT: Math.random(), duration: 2.5 },
+      );
+    }
+
     this.drawEdges();
     this.fitView();
     this.applyTextures();
@@ -478,6 +513,62 @@ export class PixiCanvas {
     const my = Math.ceil(this.nodes.length / cols) * 290;
     for (const n of this.nodes) { n.x = Math.random() * mx; n.y = Math.random() * my; }
     this.drawEdges();
+  }
+
+  addFormNode() {
+    const id = `canvas-form-node-${Date.now()}-${this.formSeq++}`;
+    const centerWorld = this.toWorld(this.sw * 0.5, this.sh * 0.5);
+    const data: NodeData = {
+      id,
+      type: 'form',
+      title: '新建表单节点',
+      tags: [],
+      credits: 0,
+      genTime: '-',
+      progress: 0,
+      imageId: 0,
+      imageId2: 1,
+      x: centerWorld.x - NODE_WIDTH * 0.5 + (Math.random() - 0.5) * 120,
+      y: centerWorld.y - NODE_HEIGHT * 0.5 + (Math.random() - 0.5) * 80,
+      formA: '',
+      formB: '',
+      formC: '',
+    };
+
+    const sprite = new NodeSprite(data);
+    this.nodeLayer.addChild(sprite);
+    this.nodes.push(sprite);
+    this.nodeMap.set(id, sprite);
+    sprite.setLod(this._currentLod);
+
+    const target = this.nodes.find((n) => n.data.type !== 'form' && n.data.id !== id);
+    if (target) {
+      this.edges.push({
+        source: id,
+        target: target.data.id,
+        edgeType: 'reference',
+        particleT: Math.random(),
+        duration: 2.6,
+      });
+    }
+    this.drawEdges();
+  }
+
+  getNodeScreenRect(id: string) {
+    const node = this.nodeMap.get(id);
+    if (!node) return null;
+    return {
+      x: this.world.x + node.x * this.zoom,
+      y: this.world.y + node.y * this.zoom,
+      width: NODE_WIDTH * this.zoom,
+      height: NODE_HEIGHT * this.zoom,
+    };
+  }
+
+  updateFormNodeData(id: string, values: { a: string; b: string; c: string }) {
+    const node = this.nodeMap.get(id);
+    if (!node || node.data.type !== 'form') return;
+    node.updateFormData(values);
   }
 
   deleteNode(id: string) {

@@ -14,6 +14,7 @@ import {
   SelectionMode,
   type Node,
   type NodeChange,
+  type Edge,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { NodeCountContext, LodLevelContext, ParticlesContext } from '../contexts/ZoomLodContext';
@@ -22,18 +23,21 @@ import type { LodLevel } from '../contexts/ZoomLodContext';
 import ImageNode from '../components/ImageNode';
 import VideoNode from '../components/VideoNode';
 import CompareNode from '../components/CompareNode';
+import FormCanvasNode from '../components/FormCanvasNode';
 import AnimatedEdge from '../components/AnimatedEdge';
 import ControlPanel from '../components/ControlPanel';
-import FpsMonitor from '../components/FpsMonitor';
+import FpsMonitor from '../components/FpsMonitor.tsx';
 import DetailModal from '../components/DetailModal';
 import ContextMenu from '../components/ContextMenu';
 import { generateNodes, generateEdges } from '../utils/dataGenerator';
-import { preloadPool } from '../utils/imageCache';
+import { preloadPool, preloadImage } from '../utils/imageCache';
+import { getThumbnailUrl } from '../utils/getThumbnailUrl';
 
 const nodeTypes = {
   image: ImageNode,
   video: VideoNode,
   compare: CompareNode,
+  form: FormCanvasNode,
 };
 
 const edgeTypes = {
@@ -55,6 +59,7 @@ function FlowCanvas() {
   const shuffleTimerRef = useRef<number>(0);
 
   const pendingChangesRef = useRef<NodeChange[]>([]);
+  const pendingDragMapRef = useRef(new Map<string, NodeChange>());
   const rafIdRef = useRef(0);
 
   const onNodesChange = useCallback((changes: NodeChange[]) => {
@@ -63,12 +68,22 @@ function FlowCanvas() {
       onNodesChangeRaw(changes);
       return;
     }
-    pendingChangesRef.current.push(...changes);
+    for (const c of changes) {
+      if (c.type === 'position' && c.dragging && 'id' in c) {
+        pendingDragMapRef.current.set(c.id, c);
+      } else {
+        pendingChangesRef.current.push(c);
+      }
+    }
     if (!rafIdRef.current) {
       rafIdRef.current = requestAnimationFrame(() => {
         rafIdRef.current = 0;
-        const batch = pendingChangesRef.current;
+        const batch = [
+          ...pendingChangesRef.current,
+          ...pendingDragMapRef.current.values(),
+        ];
         pendingChangesRef.current = [];
+        pendingDragMapRef.current.clear();
         if (batch.length) onNodesChangeRaw(batch);
       });
     }
@@ -80,9 +95,12 @@ function FlowCanvas() {
 
   const [lodLevel, setLodLevel] = useState<LodLevel>('high');
   const lodRef = useRef<LodLevel>('high');
+  const viewportRef = useRef({ x: 0, y: 0, zoom: 1 });
 
   useOnViewportChange({
-    onChange: useCallback(({ zoom: z }: { zoom: number }) => {
+    onChange: useCallback((vp: { x: number; y: number; zoom: number }) => {
+      const z = vp.zoom || 1;
+      viewportRef.current = { x: vp.x || 0, y: vp.y || 0, zoom: z };
       const next: LodLevel = z >= 1.5 ? 'ultra' : z >= 0.5 ? 'high' : z >= 0.2 ? 'medium' : 'low';
       if (lodRef.current !== next) {
         lodRef.current = next;
@@ -100,11 +118,65 @@ function FlowCanvas() {
 
   useEffect(() => {
     const newNodes = generateNodes(nodeCount);
+    const formNode: Node = {
+      id: 'canvas-form-node',
+      type: 'form',
+      position: { x: 80, y: 80 },
+      style: { width: 290, height: 240 },
+      data: {
+        title: '拖拽这个表单节点',
+        tags: [],
+        credits: 0,
+        genTime: '-',
+        progress: 0,
+        imageId: 0,
+        imageId2: 1,
+      },
+    };
     const newEdges = generateEdges(nodeCount, edgeMax);
-    setNodes(newNodes);
+    newEdges.unshift(
+      { id: 'edge-form-0', source: 'canvas-form-node', target: 'node-0', type: 'animated', data: { edgeType: 'reference', duration: 2.4 } },
+      { id: 'edge-form-1', source: 'node-1', target: 'canvas-form-node', type: 'animated', data: { edgeType: 'variant', duration: 2.7 } },
+    );
+    setNodes([formNode, ...newNodes]);
     setEdges(newEdges);
     setTimeout(() => fitView({ duration: 400 }), 50);
   }, [nodeCount, edgeMax, setNodes, setEdges, fitView]);
+
+  useEffect(() => {
+    if (!virtualization || !nodes.length) return;
+    const timer = window.setTimeout(() => {
+      const { x, y, zoom } = viewportRef.current;
+      if (zoom <= 0) return;
+
+      const margin = 480;
+      const worldW = window.innerWidth / zoom;
+      const worldH = window.innerHeight / zoom;
+      const left = (-x) / zoom - margin;
+      const top = (-y) / zoom - margin;
+      const right = left + worldW + margin * 2;
+      const bottom = top + worldH + margin * 2;
+
+      const prefetchLod: LodLevel = lodLevel === 'ultra' ? 'high' : lodLevel;
+      let warmed = 0;
+      for (const node of nodes) {
+        if (warmed >= 120) break;
+        const style = (node.style as Record<string, unknown> | undefined) ?? {};
+        const w = Number(style.width ?? 260);
+        const h = Number(style.height ?? 280);
+        const nx = node.position.x;
+        const ny = node.position.y;
+        if (nx + w < left || nx > right || ny + h < top || ny > bottom) continue;
+
+        const d = node.data as Record<string, unknown>;
+        if (typeof d.imageId === 'number') preloadImage(getThumbnailUrl(d.imageId, prefetchLod));
+        if (node.type === 'compare' && typeof d.imageId2 === 'number') preloadImage(getThumbnailUrl(d.imageId2, prefetchLod));
+        warmed++;
+      }
+    }, 120);
+
+    return () => clearTimeout(timer);
+  }, [nodes, lodLevel, virtualization]);
 
   const onNodeDoubleClick = useCallback((_: React.MouseEvent, node: Node) => {
     setModalNode(node);
@@ -171,6 +243,41 @@ function FlowCanvas() {
     [nodes, setNodes, setEdges],
   );
 
+  const handleAddFormNode = useCallback(() => {
+    const id = `canvas-form-node-${Date.now()}`;
+    const formNode: Node = {
+      id,
+      type: 'form',
+      position: { x: 140 + Math.random() * 360, y: 120 + Math.random() * 260 },
+      style: { width: 290, height: 240 },
+      data: {
+        title: '新建表单节点',
+        tags: [],
+        credits: 0,
+        genTime: '-',
+        progress: 0,
+        imageId: 0,
+        imageId2: 1,
+      },
+    };
+
+    const target = nodes.find((n) => n.id.startsWith('node-'));
+    const newEdge: Edge | null = target
+      ? {
+          id: `edge-${id}-${target.id}`,
+          source: id,
+          target: target.id,
+          type: 'animated',
+          data: { edgeType: 'reference', duration: 2.6 },
+        }
+      : null;
+
+    setNodes((prev) => [...prev, formNode]);
+    if (newEdge) {
+      setEdges((prev) => [...prev, newEdge]);
+    }
+  }, [nodes, setNodes, setEdges]);
+
   return (
     <NodeCountContext.Provider value={nodeCount}>
     <LodLevelContext.Provider value={lodLevel}>
@@ -188,6 +295,7 @@ function FlowCanvas() {
         onShuffle={handleShuffle}
         particles={particles}
         onParticlesChange={setParticles}
+        onAddFormNode={handleAddFormNode}
       />
 
       <ReactFlow
@@ -200,7 +308,7 @@ function FlowCanvas() {
         onNodeDoubleClick={onNodeDoubleClick}
         onNodeContextMenu={onNodeContextMenu}
         onPaneClick={onPaneClick}
-        onlyRenderVisibleElements
+        onlyRenderVisibleElements={virtualization}
         fitView
         selectionOnDrag
         panOnDrag={[1, 2]}
@@ -211,7 +319,7 @@ function FlowCanvas() {
         elevateNodesOnSelect={false}
         nodesFocusable={false}
         edgesFocusable={false}
-        nodesConnectable={false}
+        nodesConnectable
       >
         {lodLevel !== 'high' || nodeCount < 500 ? <Background variant={BackgroundVariant.Dots} color="#333" gap={24} size={1.5} /> : null}
         <Controls position="bottom-left" />

@@ -34,7 +34,7 @@ const VideoNode = memo(({ id, data, selected }: NodeProps) => {
 
   const posterUrl = useMemo(() => getThumbnailUrl(d.imageId, lod), [lod, d.imageId]);
 
-  const poster = useCachedImage(posterUrl);
+  const poster = useCachedImage(posterUrl, `${id}:${d.imageId}`);
 
   const handleMouseEnter = useCallback(() => {
     if (showVideo) {
@@ -48,6 +48,8 @@ const VideoNode = memo(({ id, data, selected }: NodeProps) => {
       videoRef.current.currentTime = 0;
     }
   }, []);
+
+  const canShowVideo = showVideo && !!poster.src && !poster.error;
 
   return (
     <div className={`custom-node lod-${lod} ${selected ? 'selected' : ''}`}>
@@ -68,7 +70,7 @@ const VideoNode = memo(({ id, data, selected }: NodeProps) => {
       >
         {lod === 'low' ? (
           <div className="thumbnail-placeholder video-placeholder" />
-        ) : showVideo ? (
+        ) : canShowVideo ? (
           <video
             ref={videoRef}
             src={VIDEO_URL}
@@ -79,12 +81,15 @@ const VideoNode = memo(({ id, data, selected }: NodeProps) => {
             preload="metadata"
             draggable={false}
           />
-        ) : poster.error ? (
+        ) : poster.error || !poster.src ? (
           <div className="thumbnail-placeholder video-placeholder" />
         ) : (
-          <img src={poster.src} alt={d.title} draggable={false} />
+          <img src={poster.src} alt={d.title} draggable={false} onError={poster.handleElementError} />
         )}
         {lod !== 'low' && <div className="video-badge">VIDEO</div>}
+        {lod !== 'low' && !poster.src && (
+          <div className="img-debug-badge">MISS vid:{String(d.imageId)} {lod}</div>
+        )}
       </div>
       {lod !== 'low' && (
         <div className="node-body">

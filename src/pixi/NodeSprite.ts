@@ -9,7 +9,7 @@ export type PixiLod = 'high' | 'medium' | 'low';
 
 export interface NodeData {
   id: string;
-  type: 'image' | 'video' | 'compare';
+  type: 'image' | 'video' | 'compare' | 'form';
   title: string;
   tags: string[];
   credits: number;
@@ -19,6 +19,9 @@ export interface NodeData {
   imageId2: number;
   x: number;
   y: number;
+  formA?: string;
+  formB?: string;
+  formC?: string;
 }
 
 function hslToHex(h: number, s: number, l: number): number {
@@ -42,6 +45,13 @@ export class NodeSprite extends Container {
   private _hovered = false;
   private _hasTexture = false;
   private _lod: PixiLod = 'high';
+
+  private formSummary() {
+    const a = this.data.formA?.trim() || '-';
+    const b = this.data.formB?.trim() || '-';
+    const c = this.data.formC?.trim() || '-';
+    return `${a} | ${b} | ${c}`;
+  }
 
   get selected() { return this._selected; }
   set selected(v: boolean) {
@@ -74,7 +84,9 @@ export class NodeSprite extends Container {
     this.addChild(this.titleText);
 
     this.infoText = new Text({
-      text: `${data.tags.slice(0, 2).join('  ')}   ${data.credits}pts  ${data.genTime}`,
+      text: data.type === 'form'
+        ? this.formSummary()
+        : `${data.tags.slice(0, 2).join('  ')}   ${data.credits}pts  ${data.genTime}`,
       style: { fontSize: 10, fill: 0x888888, fontFamily: 'sans-serif' },
     });
     this.infoText.x = 8;
@@ -83,7 +95,7 @@ export class NodeSprite extends Container {
 
     if (data.type !== 'image') {
       this.badgeText = new Text({
-        text: data.type === 'video' ? 'VIDEO' : 'VS',
+        text: data.type === 'video' ? 'VIDEO' : data.type === 'compare' ? 'VS' : 'FORM',
         style: { fontSize: 9, fontWeight: '700', fill: 0xffffff, fontFamily: 'sans-serif' },
       });
       this.badgeText.x = 11;
@@ -93,6 +105,10 @@ export class NodeSprite extends Container {
   }
 
   setTexture(tex: Texture, tex2?: Texture) {
+    if (this.data.type === 'form') {
+      this.applyLod();
+      return;
+    }
     if (this._hasTexture) return;
     this._hasTexture = true;
 
@@ -124,6 +140,14 @@ export class NodeSprite extends Container {
     if (this._lod === lod) return;
     this._lod = lod;
     this.applyLod();
+  }
+
+  updateFormData(values: { a: string; b: string; c: string }) {
+    if (this.data.type !== 'form') return;
+    this.data.formA = values.a;
+    this.data.formB = values.b;
+    this.data.formC = values.c;
+    this.infoText.text = this.formSummary();
   }
 
   private applyLod() {
@@ -164,8 +188,17 @@ export class NodeSprite extends Container {
     }
 
     if (this.data.type !== 'image') {
-      const badgeColor = this.data.type === 'video' ? 0xf97316 : 0x22c55e;
-      g.roundRect(6, 4, this.data.type === 'video' ? 42 : 24, 16, 3).fill(badgeColor);
+      const badgeColor = this.data.type === 'video' ? 0xf97316 : this.data.type === 'compare' ? 0x22c55e : 0x8b5cf6;
+      const badgeWidth = this.data.type === 'video' ? 42 : this.data.type === 'compare' ? 24 : 36;
+      g.roundRect(6, 4, badgeWidth, 16, 3).fill(badgeColor);
+    }
+
+    if (this.data.type === 'form') {
+      g.rect(1, 1, NODE_WIDTH - 2, THUMB_HEIGHT).fill(0x1a1a34);
+      g.roundRect(14, 18, NODE_WIDTH - 28, 20, 4).fill(0x101024).stroke({ color: 0x2a2a44, width: 1 });
+      g.roundRect(14, 48, NODE_WIDTH - 28, 20, 4).fill(0x101024).stroke({ color: 0x2a2a44, width: 1 });
+      g.roundRect(14, 78, NODE_WIDTH - 28, 20, 4).fill(0x101024).stroke({ color: 0x2a2a44, width: 1 });
+      g.roundRect(14, 112, 80, 20, 4).fill(0x6366f1);
     }
 
     g.rect(0, NODE_HEIGHT - 3, NODE_WIDTH, 3).fill(0x1e1e32);

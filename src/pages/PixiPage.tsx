@@ -2,7 +2,7 @@ import { useRef, useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { PixiCanvas, type PixiStats } from '../pixi/PixiCanvas';
 import type { NodeData } from '../pixi/NodeSprite';
-import FpsMonitor from '../components/FpsMonitor';
+import FpsMonitor from '../components/FpsMonitor.tsx';
 import DetailModal from '../components/DetailModal';
 import ContextMenu from '../components/ContextMenu';
 
@@ -22,6 +22,14 @@ export default function PixiPage() {
   const [pixiInfo, setPixiInfo] = useState<PixiStats>({ fps: 0, totalNodes: 0, visibleNodes: 0, edges: 0, rendererType: '', frameTime: 0 });
   const [modalNode, setModalNode] = useState<{ type: string; data: Record<string, any> } | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
+  const [formEditor, setFormEditor] = useState<{
+    nodeId: string;
+    x: number;
+    y: number;
+    a: string;
+    b: string;
+    c: string;
+  } | null>(null);
 
   nodeCountRef.current = nodeCount;
 
@@ -36,7 +44,27 @@ export default function PixiPage() {
       px.edgeAnimationEnabled = edgeAnim;
       px.hoverEnabled = hover;
       px.setNodeCount(nodeCountRef.current);
-      px.onNodeDoubleClick = (d: NodeData) => setModalNode({ type: d.type, data: d as any });
+      px.onNodeDoubleClick = (d: NodeData) => {
+        if (d.type === 'form') {
+          const rect = px.getNodeScreenRect(d.id);
+          const vw = window.innerWidth;
+          const vh = window.innerHeight;
+          const width = 300;
+          const height = 240;
+          const left = rect ? rect.x + rect.width + 12 : vw * 0.5 - width * 0.5;
+          const top = rect ? rect.y : vh * 0.5 - height * 0.5;
+          setFormEditor({
+            nodeId: d.id,
+            x: Math.max(10, Math.min(vw - width - 10, left)),
+            y: Math.max(10, Math.min(vh - height - 10, top)),
+            a: d.formA ?? '',
+            b: d.formB ?? '',
+            c: d.formC ?? '',
+          });
+          return;
+        }
+        setModalNode({ type: d.type, data: d as any });
+      };
       px.onNodeContextMenu = (x, y, d: NodeData) => setCtxMenu({ x, y, nodeId: d.id });
     });
 
@@ -67,6 +95,17 @@ export default function PixiPage() {
     }
     setCtxMenu(null);
   }, []);
+
+  const onFormSubmit = useCallback((e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!formEditor || !canvasRef.current) return;
+    canvasRef.current.updateFormNodeData(formEditor.nodeId, {
+      a: formEditor.a,
+      b: formEditor.b,
+      c: formEditor.c,
+    });
+    setFormEditor(null);
+  }, [formEditor]);
 
   return (
     <div className="app">
@@ -127,9 +166,46 @@ export default function PixiPage() {
         <button className="shuffle-btn" onClick={() => canvasRef.current?.shuffle()}>
           Shuffle Layout
         </button>
+        <button className="shuffle-btn" onClick={() => canvasRef.current?.addFormNode()}>
+          Add Form Node
+        </button>
       </div>
 
       <div ref={containerRef} className="pixi-container" />
+
+      {formEditor && (
+        <div className="pixi-form-editor" style={{ left: formEditor.x, top: formEditor.y }}>
+          <div className="canvas-form-header">编辑表单节点</div>
+          <form className="canvas-form-body" onSubmit={onFormSubmit}>
+            <input
+              className="form-input"
+              placeholder="Field 1"
+              value={formEditor.a}
+              onChange={(e) => setFormEditor((prev) => (prev ? { ...prev, a: e.target.value } : prev))}
+            />
+            <input
+              className="form-input"
+              placeholder="Field 2"
+              value={formEditor.b}
+              onChange={(e) => setFormEditor((prev) => (prev ? { ...prev, b: e.target.value } : prev))}
+            />
+            <input
+              className="form-input"
+              placeholder="Field 3"
+              value={formEditor.c}
+              onChange={(e) => setFormEditor((prev) => (prev ? { ...prev, c: e.target.value } : prev))}
+            />
+            <div className="pixi-form-editor-actions">
+              <button type="button" className="shuffle-btn" onClick={() => setFormEditor(null)}>
+                Cancel
+              </button>
+              <button type="submit" className="shuffle-btn">
+                Save
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {modalNode && <DetailModal node={modalNode} onClose={() => setModalNode(null)} />}
       {ctxMenu && (

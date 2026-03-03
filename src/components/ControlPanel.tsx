@@ -12,6 +12,7 @@ interface ControlPanelProps {
   edgeCount?: number;
   onEdgeCountChange?: (count: number) => void;
   edgeCounts?: number[];
+  onAddFormNode?: () => void;
 }
 
 const DEFAULT_COUNTS = [100, 500, 1000, 2000, 5000];
@@ -30,6 +31,7 @@ const ControlPanel = memo(({
   edgeCount,
   onEdgeCountChange,
   edgeCounts = DEFAULT_EDGE_COUNTS,
+  onAddFormNode,
 }: ControlPanelProps) => {
   return (
     <div className="control-panel">
@@ -94,6 +96,11 @@ const ControlPanel = memo(({
       <button className="shuffle-btn" onClick={onShuffle}>
         Shuffle Layout
       </button>
+      {onAddFormNode && (
+        <button className="shuffle-btn" onClick={onAddFormNode}>
+          Add Form Node
+        </button>
+      )}
     </div>
   );
 });

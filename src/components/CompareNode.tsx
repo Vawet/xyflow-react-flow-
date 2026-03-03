@@ -7,7 +7,7 @@ import { getThumbnailUrl } from '../utils/getThumbnailUrl';
 const nodePropsEqual = (prev: NodeProps, next: NodeProps) =>
   prev.selected === next.selected && prev.data === next.data;
 
-const CompareNode = memo(({ data, selected }: NodeProps) => {
+const CompareNode = memo(({ id, data, selected }: NodeProps) => {
   const d = data as Record<string, any>;
   const lod = useLodLevel();
   const nodeCount = useNodeCount();
@@ -18,8 +18,8 @@ const CompareNode = memo(({ data, selected }: NodeProps) => {
     getThumbnailUrl(d.imageId2, lod),
   ], [lod, d.imageId, d.imageId2]);
 
-  const imgA = useCachedImage(rawA);
-  const imgB = useCachedImage(rawB);
+  const imgA = useCachedImage(rawA, `${id}:a:${d.imageId}`);
+  const imgB = useCachedImage(rawB, `${id}:b:${d.imageId2}`);
   const allLoaded = imgA.loaded && imgB.loaded;
   const hasError = imgA.error || imgB.error;
 
@@ -36,16 +36,19 @@ const CompareNode = memo(({ data, selected }: NodeProps) => {
       )}
       <Handle type="target" position={Position.Left} />
       <div className={`node-thumbnail ${!allLoaded && lod !== 'low' ? 'loading' : ''}`}>
-        {lod === 'low' || hasError ? (
+        {lod === 'low' || hasError || !imgA.src || !imgB.src ? (
           <div className="thumbnail-placeholder compare-placeholder" />
         ) : (
           <div className="compare-thumbnail">
-            <img src={imgA.src} alt="left" draggable={false} />
+            <img src={imgA.src} alt="left" draggable={false} onError={imgA.handleElementError} />
             <div className="compare-divider" />
-            <img src={imgB.src} alt="right" draggable={false} />
+            <img src={imgB.src} alt="right" draggable={false} onError={imgB.handleElementError} />
           </div>
         )}
         {lod !== 'low' && <div className="compare-badge">VS</div>}
+        {lod !== 'low' && (!imgA.src || !imgB.src) && (
+          <div className="img-debug-badge">MISS cmp:{String(d.imageId)}/{String(d.imageId2)} {lod}</div>
+        )}
       </div>
       {lod !== 'low' && (
         <div className="node-body">
