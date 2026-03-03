@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
 
-export type LodLevel = 'high' | 'medium' | 'low';
+export type LodLevel = 'ultra' | 'high' | 'medium' | 'low';
 
 export const NodeCountContext = createContext<number>(100);
 export const LodLevelContext = createContext<LodLevel>('high');

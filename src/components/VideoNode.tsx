@@ -2,6 +2,7 @@ import { memo, useRef, useCallback, useMemo, useEffect, useState } from 'react';
 import { Handle, Position, NodeResizer, type NodeProps } from '@xyflow/react';
 import { useLodLevel, useNodeCount } from '../contexts/ZoomLodContext';
 import { useCachedImage } from '../hooks/useCachedImage';
+import { getThumbnailUrl } from '../utils/getThumbnailUrl';
 
 const VIDEO_URL = 'https://vjs.zencdn.net/v/oceans.mp4';
 const MAX_VIDEOS = 3;
@@ -31,12 +32,7 @@ const VideoNode = memo(({ id, data, selected }: NodeProps) => {
 
   const showVideo = wantVideo && hasSlot;
 
-  const posterUrl = useMemo(() => {
-    if (lod === 'low') return '';
-    const w = lod === 'high' ? 280 : 80;
-    const h = lod === 'high' ? 180 : 50;
-    return `https://picsum.photos/seed/${d.imageId}/${w}/${h}`;
-  }, [lod, d.imageId]);
+  const posterUrl = useMemo(() => getThumbnailUrl(d.imageId, lod), [lod, d.imageId]);
 
   const poster = useCachedImage(posterUrl);
 
@@ -93,7 +89,7 @@ const VideoNode = memo(({ id, data, selected }: NodeProps) => {
       {lod !== 'low' && (
         <div className="node-body">
           <div className="node-title">{d.title}</div>
-          {!lite && lod === 'high' && (
+          {!lite && (lod === 'high' || lod === 'ultra') && (
             <div className="node-tags">
               {(d.tags as string[]).map((tag: string, i: number) => (
                 <span key={i} className="tag">{tag}</span>

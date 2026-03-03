@@ -2,6 +2,7 @@ import { memo, useMemo } from 'react';
 import { Handle, Position, NodeResizer, type NodeProps } from '@xyflow/react';
 import { useLodLevel, useNodeCount } from '../contexts/ZoomLodContext';
 import { useCachedImage } from '../hooks/useCachedImage';
+import { getThumbnailUrl } from '../utils/getThumbnailUrl';
 
 const nodePropsEqual = (prev: NodeProps, next: NodeProps) =>
   prev.selected === next.selected && prev.data === next.data;
@@ -12,15 +13,10 @@ const CompareNode = memo(({ data, selected }: NodeProps) => {
   const nodeCount = useNodeCount();
   const lite = nodeCount >= 500;
 
-  const [rawA, rawB] = useMemo(() => {
-    if (lod === 'low') return ['', ''];
-    const w = lod === 'high' ? 140 : 50;
-    const h = lod === 'high' ? 180 : 60;
-    return [
-      `https://picsum.photos/seed/${d.imageId}/${w}/${h}`,
-      `https://picsum.photos/seed/${d.imageId2}/${w}/${h}`,
-    ];
-  }, [lod, d.imageId, d.imageId2]);
+  const [rawA, rawB] = useMemo(() => [
+    getThumbnailUrl(d.imageId, lod),
+    getThumbnailUrl(d.imageId2, lod),
+  ], [lod, d.imageId, d.imageId2]);
 
   const imgA = useCachedImage(rawA);
   const imgB = useCachedImage(rawB);
@@ -54,7 +50,7 @@ const CompareNode = memo(({ data, selected }: NodeProps) => {
       {lod !== 'low' && (
         <div className="node-body">
           <div className="node-title">{d.title}</div>
-          {!lite && lod === 'high' && (
+          {!lite && (lod === 'high' || lod === 'ultra') && (
             <div className="node-tags">
               {(d.tags as string[]).map((tag: string, i: number) => (
                 <span key={i} className="tag">{tag}</span>

@@ -83,7 +83,7 @@ function FlowCanvas() {
 
   useOnViewportChange({
     onChange: useCallback(({ zoom: z }: { zoom: number }) => {
-      const next: LodLevel = z >= 0.5 ? 'high' : z >= 0.2 ? 'medium' : 'low';
+      const next: LodLevel = z >= 1.5 ? 'ultra' : z >= 0.5 ? 'high' : z >= 0.2 ? 'medium' : 'low';
       if (lodRef.current !== next) {
         lodRef.current = next;
         setLodLevel(next);
@@ -94,7 +94,7 @@ function FlowCanvas() {
   useEffect(() => {
     preloadPool(
       Array.from({ length: 30 }, (_, i) => i),
-      [{ w: 280, h: 180 }, { w: 80, h: 50 }, { w: 140, h: 180 }, { w: 50, h: 60 }],
+      [{ w: 640, h: 360 }],
     );
   }, []);
 
