@@ -1,6 +1,9 @@
-import { memo, useState } from 'react';
+import { memo, useState, useEffect, useRef } from 'react';
 import { BaseEdge, getBezierPath, EdgeLabelRenderer, type EdgeProps } from '@xyflow/react';
-import { useZoomLod, type LodLevel } from '../contexts/ZoomLodContext';
+import { useLodLevel, useParticles } from '../contexts/ZoomLodContext';
+
+const MAX_PARTICLES = 80;
+const activeParticles = new Set<string>();
 
 const EDGE_COLORS: Record<string, string> = {
   reference: '#3b82f6',
@@ -25,9 +28,32 @@ const AnimatedEdge = memo(({
   data,
 }: EdgeProps) => {
   const [hovered, setHovered] = useState(false);
-  const { zoom, nodeCount } = useZoomLod();
-  const lod: LodLevel = zoom >= 0.5 ? 'high' : zoom >= 0.2 ? 'medium' : 'low';
-  const particlesOff = nodeCount >= 500;
+  const lod = useLodLevel();
+  const particlesEnabled = useParticles();
+  const particlesOff = !particlesEnabled;
+
+  const wantParticle = !particlesOff && lod !== 'low';
+  const hasSlotRef = useRef(false);
+  const [hasSlot, setHasSlot] = useState(false);
+
+  useEffect(() => {
+    if (wantParticle && (activeParticles.has(id) || activeParticles.size < MAX_PARTICLES)) {
+      activeParticles.add(id);
+      hasSlotRef.current = true;
+      setHasSlot(true);
+      return () => {
+        activeParticles.delete(id);
+        hasSlotRef.current = false;
+      };
+    }
+    if (hasSlotRef.current) {
+      activeParticles.delete(id);
+      hasSlotRef.current = false;
+    }
+    setHasSlot(false);
+  }, [wantParticle, id]);
+
+  const showParticle = wantParticle && hasSlot;
 
   const edgeType = (data?.edgeType as string) || 'reference';
   const color = EDGE_COLORS[edgeType] || EDGE_COLORS.reference;
@@ -45,7 +71,7 @@ const AnimatedEdge = memo(({
 
   return (
     <>
-      {lod === 'high' && !particlesOff && (
+      {lod === 'high' && showParticle && (
         <path
           d={edgePath}
           fill="none"
@@ -62,11 +88,9 @@ const AnimatedEdge = memo(({
           stroke: color,
           strokeWidth: lod === 'low' ? 1 : hovered ? 3 : 1.5,
           opacity: lod === 'low' ? 0.3 : hovered ? 1 : 0.6,
-          filter: hovered && lod === 'high' ? `drop-shadow(0 0 6px ${color})` : 'none',
-          transition: lod === 'low' ? 'none' : 'stroke-width 0.2s, opacity 0.2s, filter 0.2s',
         }}
       />
-      {lod !== 'low' && !particlesOff && (
+      {showParticle && (
         <circle r={hovered ? 5 : 3} fill={color} opacity={0.9}>
           <animateMotion dur={`${duration}s`} repeatCount="indefinite" path={edgePath} />
         </circle>

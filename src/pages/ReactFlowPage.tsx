@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect, useRef, useMemo } from 'react';
+import { useCallback, useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ReactFlow,
@@ -13,9 +13,10 @@ import {
   BackgroundVariant,
   SelectionMode,
   type Node,
+  type NodeChange,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { ZoomLodContext } from '../contexts/ZoomLodContext';
+import { NodeCountContext, LodLevelContext, ParticlesContext } from '../contexts/ZoomLodContext';
 import type { LodLevel } from '../contexts/ZoomLodContext';
 
 import ImageNode from '../components/ImageNode';
@@ -27,6 +28,7 @@ import FpsMonitor from '../components/FpsMonitor';
 import DetailModal from '../components/DetailModal';
 import ContextMenu from '../components/ContextMenu';
 import { generateNodes, generateEdges } from '../utils/dataGenerator';
+import { preloadPool } from '../utils/imageCache';
 
 const nodeTypes = {
   image: ImageNode,
@@ -40,38 +42,69 @@ const edgeTypes = {
 
 function FlowCanvas() {
   const [nodeCount, setNodeCount] = useState(100);
+  const [edgeMax, setEdgeMax] = useState(150);
   const [virtualization, setVirtualization] = useState(true);
+  const [particles, setParticles] = useState(false);
   const [isShuffling, setIsShuffling] = useState(false);
   const [modalNode, setModalNode] = useState<Node | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const [nodes, setNodes, onNodesChangeRaw] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const { fitView } = useReactFlow();
   const shuffleTimerRef = useRef<number>(0);
 
-  const [zoom, setZoom] = useState(1);
-  const zoomRef = useRef(1);
+  const pendingChangesRef = useRef<NodeChange[]>([]);
+  const rafIdRef = useRef(0);
+
+  const onNodesChange = useCallback((changes: NodeChange[]) => {
+    const hasDrag = changes.some(c => c.type === 'position' && c.dragging);
+    if (!hasDrag) {
+      onNodesChangeRaw(changes);
+      return;
+    }
+    pendingChangesRef.current.push(...changes);
+    if (!rafIdRef.current) {
+      rafIdRef.current = requestAnimationFrame(() => {
+        rafIdRef.current = 0;
+        const batch = pendingChangesRef.current;
+        pendingChangesRef.current = [];
+        if (batch.length) onNodesChangeRaw(batch);
+      });
+    }
+  }, [onNodesChangeRaw]);
+
+  useEffect(() => {
+    return () => { cancelAnimationFrame(rafIdRef.current); };
+  }, []);
+
+  const [lodLevel, setLodLevel] = useState<LodLevel>('high');
+  const lodRef = useRef<LodLevel>('high');
 
   useOnViewportChange({
     onChange: useCallback(({ zoom: z }: { zoom: number }) => {
-      const rounded = Math.round(z * 4) / 4;
-      if (zoomRef.current !== rounded) {
-        zoomRef.current = rounded;
-        setZoom(rounded);
+      const next: LodLevel = z >= 0.5 ? 'high' : z >= 0.2 ? 'medium' : 'low';
+      if (lodRef.current !== next) {
+        lodRef.current = next;
+        setLodLevel(next);
       }
     }, []),
   });
 
-  const globalLod: LodLevel = zoom >= 0.5 ? 'high' : zoom >= 0.2 ? 'medium' : 'low';
+  useEffect(() => {
+    preloadPool(
+      Array.from({ length: 30 }, (_, i) => i),
+      [{ w: 280, h: 180 }, { w: 80, h: 50 }, { w: 140, h: 180 }, { w: 50, h: 60 }],
+    );
+  }, []);
 
   useEffect(() => {
     const newNodes = generateNodes(nodeCount);
-    const newEdges = generateEdges(nodeCount);
+    const newEdges = generateEdges(nodeCount, edgeMax);
     setNodes(newNodes);
     setEdges(newEdges);
     setTimeout(() => fitView({ duration: 400 }), 50);
-  }, [nodeCount, setNodes, setEdges, fitView]);
+  }, [nodeCount, edgeMax, setNodes, setEdges, fitView]);
 
   const onNodeDoubleClick = useCallback((_: React.MouseEvent, node: Node) => {
     setModalNode(node);
@@ -138,19 +171,23 @@ function FlowCanvas() {
     [nodes, setNodes, setEdges],
   );
 
-  const ctxValue = useMemo(() => ({ zoom, nodeCount }), [zoom, nodeCount]);
-
   return (
-    <ZoomLodContext.Provider value={ctxValue}>
-    <div className={`app ${isShuffling ? 'shuffling' : ''} lod-${globalLod}`}>
+    <NodeCountContext.Provider value={nodeCount}>
+    <LodLevelContext.Provider value={lodLevel}>
+    <ParticlesContext.Provider value={particles}>
+    <div className={`app ${isShuffling ? 'shuffling' : ''} lod-${lodLevel}`}>
       <Link to="/" className="home-link">Home</Link>
       <FpsMonitor nodeCount={nodes.length} edgeCount={edges.length} rendererType="HTML/DOM + SVG" />
       <ControlPanel
         nodeCount={nodeCount}
         onNodeCountChange={setNodeCount}
+        edgeCount={edgeMax}
+        onEdgeCountChange={setEdgeMax}
         virtualization={virtualization}
         onVirtualizationChange={setVirtualization}
         onShuffle={handleShuffle}
+        particles={particles}
+        onParticlesChange={setParticles}
       />
 
       <ReactFlow
@@ -163,19 +200,20 @@ function FlowCanvas() {
         onNodeDoubleClick={onNodeDoubleClick}
         onNodeContextMenu={onNodeContextMenu}
         onPaneClick={onPaneClick}
-        onlyRenderVisibleElements={virtualization}
+        onlyRenderVisibleElements
         fitView
         selectionOnDrag
         panOnDrag={[1, 2]}
         selectionMode={SelectionMode.Partial}
         minZoom={0.02}
         maxZoom={2}
-        defaultEdgeOptions={{ animated: true }}
+        defaultEdgeOptions={{ animated: false }}
         elevateNodesOnSelect={false}
         nodesFocusable={false}
         edgesFocusable={false}
+        nodesConnectable={false}
       >
-        <Background variant={BackgroundVariant.Dots} color="#333" gap={24} size={1.5} />
+        {lodLevel !== 'high' || nodeCount < 500 ? <Background variant={BackgroundVariant.Dots} color="#333" gap={24} size={1.5} /> : null}
         <Controls position="bottom-left" />
         {nodeCount < 1000 && (
           <MiniMap
@@ -204,7 +242,9 @@ function FlowCanvas() {
         />
       )}
     </div>
-    </ZoomLodContext.Provider>
+    </ParticlesContext.Provider>
+    </LodLevelContext.Provider>
+    </NodeCountContext.Provider>
   );
 }
 

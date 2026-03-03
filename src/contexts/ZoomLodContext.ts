@@ -2,13 +2,18 @@ import { createContext, useContext } from 'react';
 
 export type LodLevel = 'high' | 'medium' | 'low';
 
-interface ZoomLodValue {
-  zoom: number;
-  nodeCount: number;
+export const NodeCountContext = createContext<number>(100);
+export const LodLevelContext = createContext<LodLevel>('high');
+export const ParticlesContext = createContext<boolean>(true);
+
+export function useNodeCount(): number {
+  return useContext(NodeCountContext);
 }
 
-export const ZoomLodContext = createContext<ZoomLodValue>({ zoom: 1, nodeCount: 100 });
+export function useLodLevel(): LodLevel {
+  return useContext(LodLevelContext);
+}
 
-export function useZoomLod(): ZoomLodValue {
-  return useContext(ZoomLodContext);
+export function useParticles(): boolean {
+  return useContext(ParticlesContext);
 }

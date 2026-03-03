@@ -1,16 +1,18 @@
 import { memo, useMemo } from 'react';
 import { Handle, Position, NodeResizer, type NodeProps } from '@xyflow/react';
-import { useZoomLod, type LodLevel } from '../contexts/ZoomLodContext';
+import { useLodLevel, useNodeCount } from '../contexts/ZoomLodContext';
+import { useCachedImage } from '../hooks/useCachedImage';
 
-const CompareNode = memo(({ data, selected, width }: NodeProps) => {
+const nodePropsEqual = (prev: NodeProps, next: NodeProps) =>
+  prev.selected === next.selected && prev.data === next.data;
+
+const CompareNode = memo(({ data, selected }: NodeProps) => {
   const d = data as Record<string, any>;
-  const { zoom, nodeCount } = useZoomLod();
-  const nodeW = width || 280;
-  const effectiveW = nodeW * zoom;
-  const lod: LodLevel = effectiveW >= 150 ? 'high' : effectiveW >= 50 ? 'medium' : 'low';
+  const lod = useLodLevel();
+  const nodeCount = useNodeCount();
   const lite = nodeCount >= 500;
 
-  const [srcA, srcB] = useMemo(() => {
+  const [rawA, rawB] = useMemo(() => {
     if (lod === 'low') return ['', ''];
     const w = lod === 'high' ? 140 : 50;
     const h = lod === 'high' ? 180 : 60;
@@ -19,6 +21,11 @@ const CompareNode = memo(({ data, selected, width }: NodeProps) => {
       `https://picsum.photos/seed/${d.imageId2}/${w}/${h}`,
     ];
   }, [lod, d.imageId, d.imageId2]);
+
+  const imgA = useCachedImage(rawA);
+  const imgB = useCachedImage(rawB);
+  const allLoaded = imgA.loaded && imgB.loaded;
+  const hasError = imgA.error || imgB.error;
 
   return (
     <div className={`custom-node compare lod-${lod} ${selected ? 'selected' : ''}`}>
@@ -32,14 +39,14 @@ const CompareNode = memo(({ data, selected, width }: NodeProps) => {
         />
       )}
       <Handle type="target" position={Position.Left} />
-      <div className="node-thumbnail">
-        {lod === 'low' ? (
+      <div className={`node-thumbnail ${!allLoaded && lod !== 'low' ? 'loading' : ''}`}>
+        {lod === 'low' || hasError ? (
           <div className="thumbnail-placeholder compare-placeholder" />
         ) : (
           <div className="compare-thumbnail">
-            <img src={srcA} alt="left" loading="lazy" draggable={false} />
+            <img src={imgA.src} alt="left" draggable={false} />
             <div className="compare-divider" />
-            <img src={srcB} alt="right" loading="lazy" draggable={false} />
+            <img src={imgB.src} alt="right" draggable={false} />
           </div>
         )}
         {lod !== 'low' && <div className="compare-badge">VS</div>}
@@ -65,7 +72,7 @@ const CompareNode = memo(({ data, selected, width }: NodeProps) => {
       <Handle type="source" position={Position.Right} />
     </div>
   );
-});
+}, nodePropsEqual);
 
 CompareNode.displayName = 'CompareNode';
 export default CompareNode;

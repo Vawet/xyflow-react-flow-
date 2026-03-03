@@ -1,30 +1,50 @@
-import { memo, useRef, useCallback, useMemo } from 'react';
+import { memo, useRef, useCallback, useMemo, useEffect, useState } from 'react';
 import { Handle, Position, NodeResizer, type NodeProps } from '@xyflow/react';
-import { useZoomLod, type LodLevel } from '../contexts/ZoomLodContext';
+import { useLodLevel, useNodeCount } from '../contexts/ZoomLodContext';
+import { useCachedImage } from '../hooks/useCachedImage';
 
 const VIDEO_URL = 'https://vjs.zencdn.net/v/oceans.mp4';
+const MAX_VIDEOS = 3;
+const activeVideos = new Set<string>();
 
-const VideoNode = memo(({ data, selected, width }: NodeProps) => {
+const nodePropsEqual = (prev: NodeProps, next: NodeProps) =>
+  prev.id === next.id && prev.selected === next.selected && prev.data === next.data;
+
+const VideoNode = memo(({ id, data, selected }: NodeProps) => {
   const d = data as Record<string, any>;
-  const { zoom, nodeCount } = useZoomLod();
-  const nodeW = width || 260;
-  const effectiveW = nodeW * zoom;
-  const lod: LodLevel = effectiveW >= 150 ? 'high' : effectiveW >= 50 ? 'medium' : 'low';
+  const lod = useLodLevel();
+  const nodeCount = useNodeCount();
   const lite = nodeCount >= 500;
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  const posterSrc = useMemo(() => {
+  const wantVideo = lod === 'high';
+  const [hasSlot, setHasSlot] = useState(false);
+
+  useEffect(() => {
+    if (wantVideo && (activeVideos.has(id) || activeVideos.size < MAX_VIDEOS)) {
+      activeVideos.add(id);
+      setHasSlot(true);
+      return () => { activeVideos.delete(id); setHasSlot(false); };
+    }
+    setHasSlot(false);
+  }, [wantVideo, id]);
+
+  const showVideo = wantVideo && hasSlot;
+
+  const posterUrl = useMemo(() => {
     if (lod === 'low') return '';
     const w = lod === 'high' ? 280 : 80;
     const h = lod === 'high' ? 180 : 50;
     return `https://picsum.photos/seed/${d.imageId}/${w}/${h}`;
   }, [lod, d.imageId]);
 
+  const poster = useCachedImage(posterUrl);
+
   const handleMouseEnter = useCallback(() => {
-    if (lod === 'high') {
+    if (showVideo) {
       videoRef.current?.play().catch(() => {});
     }
-  }, [lod]);
+  }, [showVideo]);
 
   const handleMouseLeave = useCallback(() => {
     if (videoRef.current) {
@@ -46,25 +66,27 @@ const VideoNode = memo(({ data, selected, width }: NodeProps) => {
       )}
       <Handle type="target" position={Position.Left} />
       <div
-        className="node-thumbnail"
+        className={`node-thumbnail ${!poster.loaded && lod !== 'low' ? 'loading' : ''}`}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
         {lod === 'low' ? (
           <div className="thumbnail-placeholder video-placeholder" />
-        ) : lod === 'high' ? (
+        ) : showVideo ? (
           <video
             ref={videoRef}
             src={VIDEO_URL}
-            poster={posterSrc}
+            poster={poster.src}
             muted
             loop
             playsInline
             preload="metadata"
             draggable={false}
           />
+        ) : poster.error ? (
+          <div className="thumbnail-placeholder video-placeholder" />
         ) : (
-          <img src={posterSrc} alt={d.title} loading="lazy" draggable={false} />
+          <img src={poster.src} alt={d.title} draggable={false} />
         )}
         {lod !== 'low' && <div className="video-badge">VIDEO</div>}
       </div>
@@ -89,7 +111,7 @@ const VideoNode = memo(({ data, selected, width }: NodeProps) => {
       <Handle type="source" position={Position.Right} />
     </div>
   );
-});
+}, nodePropsEqual);
 
 VideoNode.displayName = 'VideoNode';
 export default VideoNode;

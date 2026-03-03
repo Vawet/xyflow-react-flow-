@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, memo } from 'react';
+import { useEffect, useRef, useState, memo, useCallback } from 'react';
 
 interface FpsMonitorProps {
   nodeCount: number;
@@ -7,12 +7,21 @@ interface FpsMonitorProps {
   visibleNodes?: number;
 }
 
+interface LongTaskInfo {
+  duration: number;
+  count: number;
+  lastAt: number;
+}
+
 const FpsMonitor = memo(({ nodeCount, edgeCount, rendererType, visibleNodes }: FpsMonitorProps) => {
   const [fps, setFps] = useState(0);
   const [frameTime, setFrameTime] = useState(0);
+  const [longTask, setLongTask] = useState<LongTaskInfo | null>(null);
   const rafRef = useRef(0);
   const lastTimeRef = useRef(performance.now());
   const framesRef = useRef(0);
+  const longTaskCountRef = useRef(0);
+  const longTaskTimerRef = useRef(0);
 
   useEffect(() => {
     const loop = () => {
@@ -34,6 +43,44 @@ const FpsMonitor = memo(({ nodeCount, edgeCount, rendererType, visibleNodes }: F
     return () => cancelAnimationFrame(rafRef.current);
   }, []);
 
+  const handleLongTask = useCallback((entries: PerformanceEntryList) => {
+    for (const entry of entries) {
+      longTaskCountRef.current++;
+      const dur = Math.round(entry.duration);
+      const attribution = (entry as any).attribution;
+      const source = attribution?.[0]?.containerType || 'unknown';
+
+      console.warn(
+        `[LongTask] ${dur}ms | source: ${source} | total: ${longTaskCountRef.current}`,
+        entry
+      );
+
+      setLongTask({
+        duration: dur,
+        count: longTaskCountRef.current,
+        lastAt: Date.now(),
+      });
+
+      clearTimeout(longTaskTimerRef.current);
+      longTaskTimerRef.current = window.setTimeout(() => setLongTask(null), 3000);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof PerformanceObserver === 'undefined') return;
+    let observer: PerformanceObserver | null = null;
+    try {
+      observer = new PerformanceObserver((list) => handleLongTask(list.getEntries()));
+      observer.observe({ type: 'longtask', buffered: true });
+    } catch {
+      return;
+    }
+    return () => {
+      observer?.disconnect();
+      clearTimeout(longTaskTimerRef.current);
+    };
+  }, [handleLongTask]);
+
   const fpsColor = fps >= 50 ? '#22c55e' : fps >= 30 ? '#eab308' : '#ef4444';
 
   return (
@@ -45,6 +92,11 @@ const FpsMonitor = memo(({ nodeCount, edgeCount, rendererType, visibleNodes }: F
       </div>
       <div className="fps-stat">Edges: {edgeCount}</div>
       <div className="fps-stat">Frame: {frameTime}ms</div>
+      {longTask && (
+        <div className="fps-stat long-task-warn">
+          LongTask: {longTask.duration}ms (x{longTask.count})
+        </div>
+      )}
     </div>
   );
 });

@@ -51,8 +51,8 @@ export function generateNodes(count: number): Node[] {
         credits: Math.floor(Math.random() * 50) + 5,
         genTime: `${(Math.random() * 30 + 5).toFixed(1)}s`,
         progress: Math.floor(Math.random() * 100),
-        imageId: Math.floor(Math.random() * 1000),
-        imageId2: Math.floor(Math.random() * 1000),
+        imageId: Math.floor(Math.random() * 30),
+        imageId2: Math.floor(Math.random() * 30),
       },
     });
   }
@@ -60,9 +60,9 @@ export function generateNodes(count: number): Node[] {
   return nodes;
 }
 
-export function generateEdges(nodeCount: number): Edge[] {
+export function generateEdges(nodeCount: number, maxEdges?: number): Edge[] {
   const edges: Edge[] = [];
-  const edgeCount = Math.min(Math.floor(nodeCount * 0.3), 150);
+  const edgeCount = maxEdges ?? Math.min(Math.floor(nodeCount * 0.3), 150);
   const usedPairs = new Set<string>();
   let attempts = 0;
   const maxAttempts = edgeCount * 5;
@@ -78,15 +78,13 @@ export function generateEdges(nodeCount: number): Edge[] {
 
     const edgeType = randomPick([...EDGE_TYPES]);
     const duration = 2 + (edges.length % 30) / 10;
-    const useCustom = nodeCount < 500;
 
     edges.push({
       id: `edge-${edges.length}`,
       source: `node-${source}`,
       target: `node-${target}`,
-      type: useCustom ? 'animated' : 'default',
+      type: 'animated',
       data: { edgeType, duration },
-      style: useCustom ? undefined : { stroke: edgeType === 'variant' ? '#22c55e' : edgeType === 'fusion' ? '#f97316' : '#3b82f6', strokeWidth: 1.5, opacity: 0.5 },
     });
   }
 

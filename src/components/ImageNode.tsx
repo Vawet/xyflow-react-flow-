@@ -1,21 +1,25 @@
 import { memo, useMemo } from 'react';
 import { Handle, Position, NodeResizer, type NodeProps } from '@xyflow/react';
-import { useZoomLod, type LodLevel } from '../contexts/ZoomLodContext';
+import { useLodLevel, useNodeCount } from '../contexts/ZoomLodContext';
+import { useCachedImage } from '../hooks/useCachedImage';
 
-const ImageNode = memo(({ data, selected, width }: NodeProps) => {
+const nodePropsEqual = (prev: NodeProps, next: NodeProps) =>
+  prev.selected === next.selected && prev.data === next.data;
+
+const ImageNode = memo(({ data, selected }: NodeProps) => {
   const d = data as Record<string, any>;
-  const { zoom, nodeCount } = useZoomLod();
-  const nodeW = width || 260;
-  const effectiveW = nodeW * zoom;
-  const lod: LodLevel = effectiveW >= 150 ? 'high' : effectiveW >= 50 ? 'medium' : 'low';
+  const lod = useLodLevel();
+  const nodeCount = useNodeCount();
   const lite = nodeCount >= 500;
 
-  const imgSrc = useMemo(() => {
+  const rawUrl = useMemo(() => {
     if (lod === 'low') return '';
     const w = lod === 'high' ? 280 : 80;
     const h = lod === 'high' ? 180 : 50;
     return `https://picsum.photos/seed/${d.imageId}/${w}/${h}`;
   }, [lod, d.imageId]);
+
+  const { src, loaded, error } = useCachedImage(rawUrl);
 
   return (
     <div className={`custom-node lod-${lod} ${selected ? 'selected' : ''}`}>
@@ -29,11 +33,11 @@ const ImageNode = memo(({ data, selected, width }: NodeProps) => {
         />
       )}
       <Handle type="target" position={Position.Left} />
-      <div className="node-thumbnail">
-        {lod === 'low' ? (
+      <div className={`node-thumbnail ${!loaded && lod !== 'low' ? 'loading' : ''}`}>
+        {lod === 'low' || error ? (
           <div className="thumbnail-placeholder" />
         ) : (
-          <img src={imgSrc} alt={d.title} loading="lazy" draggable={false} />
+          <img src={src} alt={d.title} draggable={false} />
         )}
       </div>
       {lod !== 'low' && (
@@ -57,7 +61,7 @@ const ImageNode = memo(({ data, selected, width }: NodeProps) => {
       <Handle type="source" position={Position.Right} />
     </div>
   );
-});
+}, nodePropsEqual);
 
 ImageNode.displayName = 'ImageNode';
 export default ImageNode;

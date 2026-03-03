@@ -7,9 +7,16 @@ interface ControlPanelProps {
   onVirtualizationChange: (v: boolean) => void;
   onShuffle: () => void;
   nodeCounts?: number[];
+  particles?: boolean;
+  onParticlesChange?: (v: boolean) => void;
+  edgeCount?: number;
+  onEdgeCountChange?: (count: number) => void;
+  edgeCounts?: number[];
 }
 
 const DEFAULT_COUNTS = [100, 500, 1000, 2000, 5000];
+
+const DEFAULT_EDGE_COUNTS = [0, 50, 100, 150, 300, 500];
 
 const ControlPanel = memo(({
   nodeCount,
@@ -18,6 +25,11 @@ const ControlPanel = memo(({
   onVirtualizationChange,
   onShuffle,
   nodeCounts = DEFAULT_COUNTS,
+  particles,
+  onParticlesChange,
+  edgeCount,
+  onEdgeCountChange,
+  edgeCounts = DEFAULT_EDGE_COUNTS,
 }: ControlPanelProps) => {
   return (
     <div className="control-panel">
@@ -38,6 +50,23 @@ const ControlPanel = memo(({
         </div>
       </div>
 
+      {onEdgeCountChange && (
+        <div className="panel-section">
+          <label className="section-label">Edge Count</label>
+          <div className="btn-group">
+            {edgeCounts.map((count) => (
+              <button
+                key={count}
+                className={edgeCount === count ? 'active' : ''}
+                onClick={() => onEdgeCountChange(count)}
+              >
+                {count}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="panel-section">
         <label className="toggle-label">
           <input
@@ -48,6 +77,19 @@ const ControlPanel = memo(({
           Virtualization
         </label>
       </div>
+
+      {onParticlesChange && (
+        <div className="panel-section">
+          <label className="toggle-label">
+            <input
+              type="checkbox"
+              checked={particles}
+              onChange={(e) => onParticlesChange(e.target.checked)}
+            />
+            Edge Particles
+          </label>
+        </div>
+      )}
 
       <button className="shuffle-btn" onClick={onShuffle}>
         Shuffle Layout
