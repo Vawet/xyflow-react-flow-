@@ -30,11 +30,21 @@ const ImageNode = memo(({ id, data, selected }: NodeProps) => {
       )}
       <Handle type="target" position={Position.Left} />
       <div className={`node-thumbnail ${!loaded && lod !== 'low' ? 'loading' : ''}`}>
-        {lod === 'low' || error || !src ? (
-          <div className="thumbnail-placeholder" />
-        ) : (
-          <img src={src} alt={d.title} draggable={false} onError={handleElementError} />
+        {/* 始终渲染 placeholder 作为背景，避免图片加载/切换时的闪烁 */}
+        <div className="thumbnail-placeholder" style={{ position: 'absolute', inset: 0 }} />
+        
+        {/* 图片加载成功后覆盖在 placeholder 上 */}
+        {src && lod !== 'low' && !error && (
+          <img 
+            src={src} 
+            alt={d.title} 
+            draggable={false} 
+            onError={handleElementError} 
+            decoding="sync"
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+          />
         )}
+        
         {lod !== 'low' && !src && (
           <div className="img-debug-badge">MISS img:{String(d.imageId)} {lod}</div>
         )}

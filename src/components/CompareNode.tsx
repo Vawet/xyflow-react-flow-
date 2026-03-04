@@ -36,15 +36,30 @@ const CompareNode = memo(({ id, data, selected }: NodeProps) => {
       )}
       <Handle type="target" position={Position.Left} />
       <div className={`node-thumbnail ${!allLoaded && lod !== 'low' ? 'loading' : ''}`}>
-        {lod === 'low' || hasError || !imgA.src || !imgB.src ? (
-          <div className="thumbnail-placeholder compare-placeholder" />
-        ) : (
-          <div className="compare-thumbnail">
-            <img src={imgA.src} alt="left" draggable={false} onError={imgA.handleElementError} />
+        {/* 始终渲染 placeholder 作为背景 */}
+        <div className="thumbnail-placeholder compare-placeholder" style={{ position: 'absolute', inset: 0 }} />
+        
+        {/* 图片加载成功后覆盖在 placeholder 上 */}
+        {lod !== 'low' && !hasError && imgA.src && imgB.src && (
+          <div className="compare-thumbnail" style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
+            <img 
+              src={imgA.src} 
+              alt="left" 
+              draggable={false} 
+              onError={imgA.handleElementError} 
+              decoding="sync"
+            />
             <div className="compare-divider" />
-            <img src={imgB.src} alt="right" draggable={false} onError={imgB.handleElementError} />
+            <img 
+              src={imgB.src} 
+              alt="right" 
+              draggable={false} 
+              onError={imgB.handleElementError} 
+              decoding="sync"
+            />
           </div>
         )}
+
         {lod !== 'low' && <div className="compare-badge">VS</div>}
         {lod !== 'low' && (!imgA.src || !imgB.src) && (
           <div className="img-debug-badge">MISS cmp:{String(d.imageId)}/{String(d.imageId2)} {lod}</div>

@@ -30,8 +30,6 @@ import FpsMonitor from '../components/FpsMonitor.tsx';
 import DetailModal from '../components/DetailModal';
 import ContextMenu from '../components/ContextMenu';
 import { generateNodes, generateEdges } from '../utils/dataGenerator';
-import { preloadPool, preloadImage } from '../utils/imageCache';
-import { getThumbnailUrl } from '../utils/getThumbnailUrl';
 
 const nodeTypes = {
   image: ImageNode,
@@ -57,41 +55,9 @@ function FlowCanvas() {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const { fitView } = useReactFlow();
   const shuffleTimerRef = useRef<number>(0);
-
-  const pendingChangesRef = useRef<NodeChange[]>([]);
-  const pendingDragMapRef = useRef(new Map<string, NodeChange>());
-  const rafIdRef = useRef(0);
-
   const onNodesChange = useCallback((changes: NodeChange[]) => {
-    const hasDrag = changes.some(c => c.type === 'position' && c.dragging);
-    if (!hasDrag) {
-      onNodesChangeRaw(changes);
-      return;
-    }
-    for (const c of changes) {
-      if (c.type === 'position' && c.dragging && 'id' in c) {
-        pendingDragMapRef.current.set(c.id, c);
-      } else {
-        pendingChangesRef.current.push(c);
-      }
-    }
-    if (!rafIdRef.current) {
-      rafIdRef.current = requestAnimationFrame(() => {
-        rafIdRef.current = 0;
-        const batch = [
-          ...pendingChangesRef.current,
-          ...pendingDragMapRef.current.values(),
-        ];
-        pendingChangesRef.current = [];
-        pendingDragMapRef.current.clear();
-        if (batch.length) onNodesChangeRaw(batch);
-      });
-    }
+    onNodesChangeRaw(changes);
   }, [onNodesChangeRaw]);
-
-  useEffect(() => {
-    return () => { cancelAnimationFrame(rafIdRef.current); };
-  }, []);
 
   const [lodLevel, setLodLevel] = useState<LodLevel>('high');
   const lodRef = useRef<LodLevel>('high');
@@ -108,13 +74,6 @@ function FlowCanvas() {
       }
     }, []),
   });
-
-  useEffect(() => {
-    preloadPool(
-      Array.from({ length: 30 }, (_, i) => i),
-      [{ w: 640, h: 360 }],
-    );
-  }, []);
 
   useEffect(() => {
     const newNodes = generateNodes(nodeCount);
@@ -142,41 +101,6 @@ function FlowCanvas() {
     setEdges(newEdges);
     setTimeout(() => fitView({ duration: 400 }), 50);
   }, [nodeCount, edgeMax, setNodes, setEdges, fitView]);
-
-  useEffect(() => {
-    if (!virtualization || !nodes.length) return;
-    const timer = window.setTimeout(() => {
-      const { x, y, zoom } = viewportRef.current;
-      if (zoom <= 0) return;
-
-      const margin = 480;
-      const worldW = window.innerWidth / zoom;
-      const worldH = window.innerHeight / zoom;
-      const left = (-x) / zoom - margin;
-      const top = (-y) / zoom - margin;
-      const right = left + worldW + margin * 2;
-      const bottom = top + worldH + margin * 2;
-
-      const prefetchLod: LodLevel = lodLevel === 'ultra' ? 'high' : lodLevel;
-      let warmed = 0;
-      for (const node of nodes) {
-        if (warmed >= 120) break;
-        const style = (node.style as Record<string, unknown> | undefined) ?? {};
-        const w = Number(style.width ?? 260);
-        const h = Number(style.height ?? 280);
-        const nx = node.position.x;
-        const ny = node.position.y;
-        if (nx + w < left || nx > right || ny + h < top || ny > bottom) continue;
-
-        const d = node.data as Record<string, unknown>;
-        if (typeof d.imageId === 'number') preloadImage(getThumbnailUrl(d.imageId, prefetchLod));
-        if (node.type === 'compare' && typeof d.imageId2 === 'number') preloadImage(getThumbnailUrl(d.imageId2, prefetchLod));
-        warmed++;
-      }
-    }, 120);
-
-    return () => clearTimeout(timer);
-  }, [nodes, lodLevel, virtualization]);
 
   const onNodeDoubleClick = useCallback((_: React.MouseEvent, node: Node) => {
     setModalNode(node);

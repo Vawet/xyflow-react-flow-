@@ -31,7 +31,7 @@
 
 ### 性能监控
 
-- 左上角实时 FPS 计数器（requestAnimationFrame 驱动）
+- 左上角实时 FPS 计数器（定时采样驱动）
 - 显示当前节点数、连线数、帧耗时
 - 虚拟化开关（`onlyRenderVisibleElements`）
 

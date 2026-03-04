@@ -106,7 +106,6 @@ body {
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  contain: paint;
 }
 
 .custom-node:hover {

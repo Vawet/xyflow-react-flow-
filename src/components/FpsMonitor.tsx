@@ -12,12 +12,12 @@ const BUSY_THRESHOLD_MS = 600;
 const EMA_ALPHA = 0.2;
 
 const FpsMonitor = memo(({ nodeCount, edgeCount, rendererType, visibleNodes }: FpsMonitorProps) => {
-  const rafRef = useRef(0);
+  const intervalRef = useRef<number | null>(null);
   const runningRef = useRef(false);
 
   const framesRef = useRef(0);
   const emaFpsRef = useRef(0);
-  const lastRafAtRef = useRef(performance.now());
+  const lastTickAtRef = useRef(performance.now());
   const lastSampleAtRef = useRef(performance.now());
 
   const fpsValueRef = useRef<HTMLSpanElement>(null);
@@ -44,17 +44,17 @@ const FpsMonitor = memo(({ nodeCount, edgeCount, rendererType, visibleNodes }: F
     const resetCounters = (now = performance.now()) => {
       framesRef.current = 0;
       emaFpsRef.current = 0;
-      lastRafAtRef.current = now;
+      lastTickAtRef.current = now;
       lastSampleAtRef.current = now;
       updateBusy(false);
     };
 
-    const loop = () => {
+    const tick = () => {
       if (!runningRef.current) return;
 
       const now = performance.now();
-      const frameGap = now - lastRafAtRef.current;
-      lastRafAtRef.current = now;
+      const frameGap = now - lastTickAtRef.current;
+      lastTickAtRef.current = now;
       framesRef.current++;
 
       updateBusy(frameGap > BUSY_THRESHOLD_MS);
@@ -74,20 +74,21 @@ const FpsMonitor = memo(({ nodeCount, edgeCount, rendererType, visibleNodes }: F
         framesRef.current = 0;
         lastSampleAtRef.current = now;
       }
-
-      rafRef.current = requestAnimationFrame(loop);
     };
 
     const start = () => {
       if (runningRef.current) return;
       runningRef.current = true;
       resetCounters();
-      rafRef.current = requestAnimationFrame(loop);
+      intervalRef.current = window.setInterval(tick, 16);
     };
 
     const stop = () => {
       runningRef.current = false;
-      cancelAnimationFrame(rafRef.current);
+      if (intervalRef.current !== null) {
+        window.clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
       resetCounters();
     };
 

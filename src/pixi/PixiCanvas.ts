@@ -147,6 +147,10 @@ export class PixiCanvas {
   }
 
   private loadVideoTexture() {
+    if (this._rendererType === 'WebGPU') {
+      this.videoTexture = null;
+      return;
+    }
     try {
       const video = document.createElement('video');
       video.src = 'https://vjs.zencdn.net/v/oceans.mp4';
@@ -408,6 +412,7 @@ export class PixiCanvas {
   /* -------- public API -------- */
 
   setNodeCount(count: number) {
+    if (!this._ready || !this.nodeLayer) return;
     this.nodeLayer.removeChildren();
     this.nodes = [];
     this.nodeMap.clear();
@@ -516,6 +521,7 @@ export class PixiCanvas {
   }
 
   addFormNode() {
+    if (!this._ready || !this.nodeLayer) return;
     const id = `canvas-form-node-${Date.now()}-${this.formSeq++}`;
     const centerWorld = this.toWorld(this.sw * 0.5, this.sh * 0.5);
     const data: NodeData = {

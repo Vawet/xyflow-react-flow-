@@ -35,10 +35,12 @@ export default function PixiPage() {
 
   useEffect(() => {
     if (!containerRef.current) return;
+    let disposed = false;
     const px = new PixiCanvas();
     canvasRef.current = px;
 
     px.init(containerRef.current, preference).then(() => {
+      if (disposed) return;
       readyRef.current = true;
       px.cullingEnabled = culling;
       px.edgeAnimationEnabled = edgeAnim;
@@ -73,6 +75,7 @@ export default function PixiPage() {
     }, 250);
 
     return () => {
+      disposed = true;
       clearInterval(timer);
       readyRef.current = false;
       px.destroy();

@@ -68,9 +68,11 @@ const VideoNode = memo(({ id, data, selected }: NodeProps) => {
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        {lod === 'low' ? (
-          <div className="thumbnail-placeholder video-placeholder" />
-        ) : canShowVideo ? (
+        {/* 始终渲染 placeholder 作为背景 */}
+        <div className="thumbnail-placeholder video-placeholder" style={{ position: 'absolute', inset: 0 }} />
+        
+        {/* 视频或海报图覆盖在 placeholder 上 */}
+        {lod !== 'low' && canShowVideo ? (
           <video
             ref={videoRef}
             src={VIDEO_URL}
@@ -80,12 +82,19 @@ const VideoNode = memo(({ id, data, selected }: NodeProps) => {
             playsInline
             preload="metadata"
             draggable={false}
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 1 }}
           />
-        ) : poster.error || !poster.src ? (
-          <div className="thumbnail-placeholder video-placeholder" />
-        ) : (
-          <img src={poster.src} alt={d.title} draggable={false} onError={poster.handleElementError} />
+        ) : lod !== 'low' && !poster.error && poster.src && (
+          <img 
+            src={poster.src} 
+            alt={d.title} 
+            draggable={false} 
+            onError={poster.handleElementError} 
+            decoding="sync"
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 1 }}
+          />
         )}
+
         {lod !== 'low' && <div className="video-badge">VIDEO</div>}
         {lod !== 'low' && !poster.src && (
           <div className="img-debug-badge">MISS vid:{String(d.imageId)} {lod}</div>
