@@ -46,6 +46,16 @@ body {
   will-change: transform;
 }
 
+/* Native Page Overrides: Force Hardware Acceleration to prevent flickering */
+.native-flow-page .react-flow__node {
+  will-change: transform !important;
+  transform: translateZ(0);
+}
+
+.native-flow-page .react-flow__viewport {
+  will-change: transform !important;
+}
+
 .react-flow__minimap {
   background: #12121f !important;
   border: 1px solid #1e1e32 !important;
@@ -93,7 +103,10 @@ body {
   stroke-width: 3 !important;
 }
 
-/* ==================== Custom Node ==================== */
+/* Hide edges during drag for performance - REMOVED for Strict Culling */
+/* .hiding-edges .react-flow__edge {
+  display: none !important;
+} */
 
 .custom-node {
   width: 100%;
@@ -129,6 +142,29 @@ body {
       0 0 24px rgba(99, 102, 241, 0.25),
       0 0 40px rgba(99, 102, 241, 0.1);
   }
+}
+
+/* ==================== Native Node Specific Optimizations ==================== */
+
+.native-node {
+  /* 移除阴影和复杂边框，提升渲染性能 */
+  box-shadow: none !important;
+  border: 1px solid #333 !important;
+  background: #1a1a2e !important;
+  /* 确保不使用 contain: paint，防止裁剪闪烁 */
+  contain: none !important; 
+}
+
+.native-node.selected {
+  border-color: #6366f1 !important;
+  /* 选中时简单的发光，避免复杂动画 */
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.5) !important;
+  animation: none !important;
+}
+
+.native-node .node-thumbnail {
+  /* 确保缩略图容器有背景色 */
+  background-color: #2a2a4a;
 }
 
 /* ==================== Node Thumbnail ==================== */

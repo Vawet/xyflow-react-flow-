@@ -15,6 +15,7 @@ import {
   type Node,
   type NodeChange,
   type Edge,
+  type Viewport,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { NodeCountContext, LodLevelContext, ParticlesContext } from '../contexts/ZoomLodContext';
@@ -53,7 +54,7 @@ function FlowCanvas() {
 
   const [nodes, setNodes, onNodesChangeRaw] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const { fitView } = useReactFlow();
+  const { fitView, getNodes, getEdges, getViewport } = useReactFlow();
   const shuffleTimerRef = useRef<number>(0);
   const onNodesChange = useCallback((changes: NodeChange[]) => {
     onNodesChangeRaw(changes);
@@ -63,16 +64,77 @@ function FlowCanvas() {
   const lodRef = useRef<LodLevel>('high');
   const viewportRef = useRef({ x: 0, y: 0, zoom: 1 });
 
+  // 核心剔除逻辑：复用函数
+  const cullEdges = useCallback((viewport: { x: number; y: number; zoom: number }) => {
+    // 1. 计算视口边界
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    
+    // 增加一点缓冲区 (buffer)，避免边缘闪烁
+    const buffer = 50;
+    
+    const minX = -viewport.x / viewport.zoom - buffer;
+    const maxX = (-viewport.x + width) / viewport.zoom + buffer;
+    const minY = -viewport.y / viewport.zoom - buffer;
+    const maxY = (-viewport.y + height) / viewport.zoom + buffer;
+
+    // 2. 找出可见节点
+    const visibleNodeIds = new Set<string>();
+    const currentNodes = getNodes();
+    
+    for (const node of currentNodes) {
+      const w = node.measured?.width ?? node.style?.width ?? 200;
+      const h = node.measured?.height ?? node.style?.height ?? 200;
+      const x = node.position.x;
+      const y = node.position.y;
+
+      // AABB 碰撞检测
+      if (x + Number(w) > minX && x < maxX && y + Number(h) > minY && y < maxY) {
+        visibleNodeIds.add(node.id);
+      }
+    }
+
+    // 3. 更新边的 hidden 属性
+    const currentEdges = getEdges();
+    let hasChanges = false;
+    
+    const newEdges = currentEdges.map(edge => {
+      const sourceVisible = visibleNodeIds.has(edge.source);
+      const targetVisible = visibleNodeIds.has(edge.target);
+      
+      // 严格逻辑：只要有一个端点可见，就显示。如果两个都不可见，就隐藏。
+      const shouldBeVisible = sourceVisible || targetVisible;
+      const isHidden = !shouldBeVisible;
+
+      if (edge.hidden !== isHidden) {
+        hasChanges = true;
+        return { ...edge, hidden: isHidden };
+      }
+      return edge;
+    });
+
+    if (hasChanges) {
+      setEdges(newEdges);
+    }
+  }, [getNodes, getEdges, setEdges]);
+
   useOnViewportChange({
     onChange: useCallback((vp: { x: number; y: number; zoom: number }) => {
       const z = vp.zoom || 1;
       viewportRef.current = { x: vp.x || 0, y: vp.y || 0, zoom: z };
+      
+      // LOD Logic
       const next: LodLevel = z >= 1.5 ? 'ultra' : z >= 0.5 ? 'high' : z >= 0.2 ? 'medium' : 'low';
       if (lodRef.current !== next) {
         lodRef.current = next;
         setLodLevel(next);
       }
-    }, []),
+
+      // Strict Edge Culling Logic
+      // 使用 requestAnimationFrame 节流
+      requestAnimationFrame(() => cullEdges(vp));
+
+    }, [cullEdges]),
   });
 
   useEffect(() => {
@@ -100,7 +162,14 @@ function FlowCanvas() {
     setNodes([formNode, ...newNodes]);
     setEdges(newEdges);
     setTimeout(() => fitView({ duration: 400 }), 50);
-  }, [nodeCount, edgeMax, setNodes, setEdges, fitView]);
+
+    // 初始化时执行一次剔除
+    setTimeout(() => {
+      const vp = getViewport();
+      cullEdges(vp);
+    }, 100);
+
+  }, [nodeCount, edgeMax, setNodes, setEdges, fitView, getViewport, cullEdges]);
 
   const onNodeDoubleClick = useCallback((_: React.MouseEvent, node: Node) => {
     setModalNode(node);

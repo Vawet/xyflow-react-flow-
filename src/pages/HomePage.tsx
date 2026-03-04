@@ -19,6 +19,17 @@ export default function HomePage() {
           </div>
           <div className="card-limit">Up to 2,000 nodes</div>
         </Link>
+        <Link to="/react-flow-native" className="home-card">
+          <div className="card-icon rf-icon" style={{ filter: 'hue-rotate(45deg)' }}>RF</div>
+          <h2>React Flow (Native)</h2>
+          <p>Pure React Flow implementation without custom caching or LOD optimizations. Uses standard &lt;img&gt; tags.</p>
+          <div className="card-tags">
+            <span>Native</span>
+            <span>No LOD</span>
+            <span>Stable</span>
+          </div>
+          <div className="card-limit">Baseline Test</div>
+        </Link>
         <Link to="/pixi" className="home-card">
           <div className="card-icon pixi-icon">PX</div>
           <h2>PixiJS v8</h2>
