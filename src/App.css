@@ -47,7 +47,7 @@ body {
 }
 
 /* Native Page Overrides: Force Hardware Acceleration to prevent flickering */
-.native-flow-page .react-flow__node {
+.native-flow-page .react-flow__node.dragging {
   will-change: transform !important;
   transform: translateZ(0);
 }
@@ -61,6 +61,13 @@ body {
   border: 1px solid #1e1e32 !important;
   border-radius: 8px !important;
 }
+
+/* Optimize Background - Merged into Strategy 2 block above */
+/* .react-flow__background {
+  pointer-events: none;
+  will-change: transform;
+  transform: translateZ(0);
+} */
 
 .react-flow__controls {
   border: 1px solid #1e1e32 !important;
@@ -103,10 +110,26 @@ body {
   stroke-width: 3 !important;
 }
 
-/* Hide edges during drag for performance - REMOVED for Strict Culling */
-/* .hiding-edges .react-flow__edge {
+/* Hide edges during drag/zoom for performance */
+.hiding-edges .react-flow__edge {
   display: none !important;
-} */
+}
+
+.react-flow__node {
+  will-change: auto;
+}
+
+.react-flow__node.dragging {
+  will-change: transform;
+  /* 强制提升为 3D 合成层，防止纹理丢失 */
+  transform: translateZ(0);
+  /* 隐藏背面，减少一半显存消耗 */
+  backface-visibility: hidden;
+  /* 隔离布局和绘制，防止影响外部 */
+  contain: layout paint;
+  /* 确保拖拽时在最上层 */
+  z-index: 9999 !important;
+}
 
 .custom-node {
   width: 100%;
@@ -151,8 +174,11 @@ body {
   box-shadow: none !important;
   border: 1px solid #333 !important;
   background: #1a1a2e !important;
-  /* 确保不使用 contain: paint，防止裁剪闪烁 */
-  contain: none !important; 
+  
+  /* 用户要求的“最强 CSS 优化”：contain: strict */
+  /* 注意：这可能会导致 Handles 被裁剪，如果 Handles 在边界外 */
+  /* 同时也包含了 contain: paint，可能会带回之前的闪烁问题，但在缩放性能上可能有帮助 */
+  contain: strict !important; 
 }
 
 .native-node.selected {

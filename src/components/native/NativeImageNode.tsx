@@ -4,6 +4,12 @@ import { Handle, Position, NodeResizer, type NodeProps } from '@xyflow/react';
 // 使用固定分辨率
 const getFixedUrl = (seed: number) => `https://picsum.photos/seed/${seed}/400/300`;
 
+const nodePropsEqual = (prev: NodeProps, next: NodeProps) =>
+  prev.id === next.id &&
+  prev.selected === next.selected &&
+  prev.dragging === next.dragging &&
+  prev.data === next.data;
+
 const NativeImageNode = memo(({ data, selected }: NodeProps) => {
   const d = data as Record<string, any>;
   const src = getFixedUrl(d.imageId);
@@ -33,8 +39,7 @@ const NativeImageNode = memo(({ data, selected }: NodeProps) => {
             height: '100%', 
             objectFit: 'cover', 
             display: 'block',
-            // 尝试强制硬件加速，防止重绘
-            transform: 'translateZ(0)',
+            // 移除强制硬件加速，只在 CSS 中对 dragging 状态应用
             backfaceVisibility: 'hidden'
           }}
         />
@@ -54,7 +59,7 @@ const NativeImageNode = memo(({ data, selected }: NodeProps) => {
       <Handle type="source" position={Position.Right} />
     </div>
   );
-});
+}, nodePropsEqual);
 
 NativeImageNode.displayName = 'NativeImageNode';
 export default NativeImageNode;

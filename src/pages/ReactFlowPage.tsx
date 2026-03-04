@@ -46,7 +46,7 @@ const edgeTypes = {
 function FlowCanvas() {
   const [nodeCount, setNodeCount] = useState(100);
   const [edgeMax, setEdgeMax] = useState(150);
-  const [virtualization, setVirtualization] = useState(true);
+  const [virtualization, setVirtualization] = useState(true); // 默认开启官方虚拟化
   const [particles, setParticles] = useState(false);
   const [isShuffling, setIsShuffling] = useState(false);
   const [modalNode, setModalNode] = useState<Node | null>(null);
@@ -63,84 +63,62 @@ function FlowCanvas() {
   const [lodLevel, setLodLevel] = useState<LodLevel>('high');
   const lodRef = useRef<LodLevel>('high');
   const viewportRef = useRef({ x: 0, y: 0, zoom: 1 });
-  const lastCullTimeRef = useRef(0);
+  
+  // 标记是否正在移动/缩放
+  const isMovingRef = useRef(false);
 
-  // 核心剔除逻辑：复用函数
-  const cullEdges = useCallback((viewport: { x: number; y: number; zoom: number }) => {
-    // 1. 计算视口边界
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    
-    // 增加一点缓冲区 (buffer)，避免边缘闪烁
-    const buffer = 50;
-    
-    const minX = -viewport.x / viewport.zoom - buffer;
-    const maxX = (-viewport.x + width) / viewport.zoom + buffer;
-    const minY = -viewport.y / viewport.zoom - buffer;
-    const maxY = (-viewport.y + height) / viewport.zoom + buffer;
-
-    // 2. 找出可见节点
-    const visibleNodeIds = new Set<string>();
-    const currentNodes = getNodes();
-    
-    for (const node of currentNodes) {
-      const w = node.measured?.width ?? node.style?.width ?? 200;
-      const h = node.measured?.height ?? node.style?.height ?? 200;
-      const x = node.position.x;
-      const y = node.position.y;
-
-      // AABB 碰撞检测
-      if (x + Number(w) > minX && x < maxX && y + Number(h) > minY && y < maxY) {
-        visibleNodeIds.add(node.id);
-      }
-    }
-
-    // 3. 更新边的 hidden 属性
-    const currentEdges = getEdges();
-    let hasChanges = false;
-    
-    const newEdges = currentEdges.map(edge => {
-      const sourceVisible = visibleNodeIds.has(edge.source);
-      const targetVisible = visibleNodeIds.has(edge.target);
-      
-      // 严格逻辑：只要有一个端点可见，就显示。如果两个都不可见，就隐藏。
-      const shouldBeVisible = sourceVisible || targetVisible;
-      const isHidden = !shouldBeVisible;
-
-      if (edge.hidden !== isHidden) {
-        hasChanges = true;
-        return { ...edge, hidden: isHidden };
-      }
-      return edge;
-    });
-
-    if (hasChanges) {
-      setEdges(newEdges);
-    }
-  }, [getNodes, getEdges, setEdges]);
+  // 核心剔除逻辑：暂时禁用以排查性能问题
+  /*
+  const cullElements = useCallback((viewport: { x: number; y: number; zoom: number }, enableVirtualization: boolean) => {
+    // ... (代码省略，暂时注释掉以恢复原生性能)
+  }, [getNodes, getEdges, setNodes, setEdges]);
+  */
 
   useOnViewportChange({
     onChange: useCallback((vp: { x: number; y: number; zoom: number }) => {
       const z = vp.zoom || 1;
       viewportRef.current = { x: vp.x || 0, y: vp.y || 0, zoom: z };
       
-      // LOD Logic
+      if (isMovingRef.current) return;
+
       const next: LodLevel = z >= 1.5 ? 'ultra' : z >= 0.5 ? 'high' : z >= 0.2 ? 'medium' : 'low';
       if (lodRef.current !== next) {
         lodRef.current = next;
         setLodLevel(next);
       }
 
-      // Strict Edge Culling Logic
-      // 节流：每 100ms 执行一次剔除，避免过于频繁的 React 状态更新导致卡顿
-      const now = performance.now();
-      if (now - lastCullTimeRef.current > 100) {
-        lastCullTimeRef.current = now;
-        cullEdges(vp);
-      }
+      // 暂时禁用手动剔除，完全依赖 React Flow 原生虚拟化
+      // const now = performance.now();
+      // if (now - lastCullTimeRef.current > 100) {
+      //   lastCullTimeRef.current = now;
+      //   cullElements(vp, virtualization);
+      // }
 
-    }, [cullEdges]),
+    }, [virtualization]), 
   });
+
+  // 处理移动开始
+  const onMoveStart = useCallback(() => {
+    isMovingRef.current = true;
+    const container = document.querySelector('.react-flow-page .react-flow');
+    if (container) container.classList.add('hiding-edges');
+  }, []);
+
+  // 处理移动结束
+  const onMoveEnd = useCallback(() => {
+    isMovingRef.current = false;
+    const container = document.querySelector('.react-flow-page .react-flow');
+    if (container) container.classList.remove('hiding-edges');
+    
+    const vp = getViewport();
+    const z = vp.zoom || 1;
+    const next: LodLevel = z >= 1.5 ? 'ultra' : z >= 0.5 ? 'high' : z >= 0.2 ? 'medium' : 'low';
+    if (lodRef.current !== next) {
+      lodRef.current = next;
+      setLodLevel(next);
+    }
+    // cullElements(vp, virtualization);
+  }, [getViewport, virtualization]);
 
   useEffect(() => {
     const newNodes = generateNodes(nodeCount);
@@ -168,13 +146,12 @@ function FlowCanvas() {
     setEdges(newEdges);
     setTimeout(() => fitView({ duration: 400 }), 50);
 
-    // 初始化时执行一次剔除
-    setTimeout(() => {
-      const vp = getViewport();
-      cullEdges(vp);
-    }, 100);
+    // setTimeout(() => {
+    //   const vp = getViewport();
+    //   cullElements(vp, virtualization);
+    // }, 100);
 
-  }, [nodeCount, edgeMax, setNodes, setEdges, fitView, getViewport, cullEdges]);
+  }, [nodeCount, edgeMax, setNodes, setEdges, fitView, getViewport, virtualization]);
 
   const onNodeDoubleClick = useCallback((_: React.MouseEvent, node: Node) => {
     setModalNode(node);
@@ -280,7 +257,7 @@ function FlowCanvas() {
     <NodeCountContext.Provider value={nodeCount}>
     <LodLevelContext.Provider value={lodLevel}>
     <ParticlesContext.Provider value={particles}>
-    <div className={`app ${isShuffling ? 'shuffling' : ''} lod-${lodLevel}`}>
+    <div className={`app react-flow-page ${isShuffling ? 'shuffling' : ''} lod-${lodLevel}`}>
       <Link to="/" className="home-link">Home</Link>
       <FpsMonitor nodeCount={nodes.length} edgeCount={edges.length} rendererType="HTML/DOM + SVG" />
       <ControlPanel
@@ -306,6 +283,7 @@ function FlowCanvas() {
         onNodeDoubleClick={onNodeDoubleClick}
         onNodeContextMenu={onNodeContextMenu}
         onPaneClick={onPaneClick}
+        // 恢复官方虚拟化逻辑，因为它比手动计算更高效
         onlyRenderVisibleElements={virtualization}
         fitView
         selectionOnDrag
@@ -318,6 +296,8 @@ function FlowCanvas() {
         nodesFocusable={false}
         edgesFocusable={false}
         nodesConnectable
+        onMoveStart={onMoveStart}
+        onMoveEnd={onMoveEnd}
       >
         {lodLevel !== 'high' || nodeCount < 500 ? <Background variant={BackgroundVariant.Dots} color="#333" gap={24} size={1.5} /> : null}
         <Controls position="bottom-left" />

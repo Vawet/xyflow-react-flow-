@@ -5,7 +5,10 @@ import { useCachedImage } from '../hooks/useCachedImage';
 import { getThumbnailUrl } from '../utils/getThumbnailUrl';
 
 const nodePropsEqual = (prev: NodeProps, next: NodeProps) =>
-  prev.selected === next.selected && prev.data === next.data;
+  prev.id === next.id &&
+  prev.selected === next.selected &&
+  prev.dragging === next.dragging &&
+  prev.data === next.data;
 
 const ImageNode = memo(({ id, data, selected }: NodeProps) => {
   const d = data as Record<string, any>;
@@ -40,6 +43,7 @@ const ImageNode = memo(({ id, data, selected }: NodeProps) => {
             alt={d.title} 
             draggable={false} 
             onError={handleElementError} 
+            loading="eager"
             decoding="sync"
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
           />
