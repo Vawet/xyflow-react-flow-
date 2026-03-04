@@ -63,6 +63,7 @@ function FlowCanvas() {
   const [lodLevel, setLodLevel] = useState<LodLevel>('high');
   const lodRef = useRef<LodLevel>('high');
   const viewportRef = useRef({ x: 0, y: 0, zoom: 1 });
+  const lastCullTimeRef = useRef(0);
 
   // 核心剔除逻辑：复用函数
   const cullEdges = useCallback((viewport: { x: number; y: number; zoom: number }) => {
@@ -131,8 +132,12 @@ function FlowCanvas() {
       }
 
       // Strict Edge Culling Logic
-      // 使用 requestAnimationFrame 节流
-      requestAnimationFrame(() => cullEdges(vp));
+      // 节流：每 100ms 执行一次剔除，避免过于频繁的 React 状态更新导致卡顿
+      const now = performance.now();
+      if (now - lastCullTimeRef.current > 100) {
+        lastCullTimeRef.current = now;
+        cullEdges(vp);
+      }
 
     }, [cullEdges]),
   });
