@@ -216,7 +216,11 @@ function FlowCanvas() {
               onAddFormNode={handleAddFormNode}
             />
             
-            <FpsMonitor />
+            <FpsMonitor 
+              nodeCount={nodeCount} 
+              edgeCount={edgeCount} 
+              rendererType="HTML/DOM + SVG (Native)" 
+            />
             
             <div style={{ position: 'absolute', bottom: 10, left: 10, color: '#666', fontSize: 12, pointerEvents: 'none' }}>
               Native Mode (Uncontrolled + Strict Edge Culling)
