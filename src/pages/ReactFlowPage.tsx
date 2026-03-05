@@ -10,6 +10,8 @@ import {
   useEdgesState,
   useReactFlow,
   useOnViewportChange,
+  addEdge,
+  Connection,
   BackgroundVariant,
   SelectionMode,
   type Node,
@@ -59,6 +61,11 @@ function FlowCanvas() {
   const onNodesChange = useCallback((changes: NodeChange[]) => {
     onNodesChangeRaw(changes);
   }, [onNodesChangeRaw]);
+
+  const onConnect = useCallback(
+    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
+    [setEdges],
+  );
 
   const [lodLevel, setLodLevel] = useState<LodLevel>('high');
   const lodRef = useRef<LodLevel>('high');
@@ -296,6 +303,7 @@ function FlowCanvas() {
         nodesFocusable={false}
         edgesFocusable={false}
         nodesConnectable
+        onConnect={onConnect}
         onMoveStart={onMoveStart}
         onMoveEnd={onMoveEnd}
       >

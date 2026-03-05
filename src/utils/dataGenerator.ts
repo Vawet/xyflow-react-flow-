@@ -64,21 +64,21 @@ export function generateEdges(nodeCount: number, maxEdges?: number): Edge[] {
   const edges: Edge[] = [];
   const edgeCount = maxEdges ?? Math.min(Math.floor(nodeCount * 0.3), 150);
   const usedPairs = new Set<string>();
-  let attempts = 0;
-  const maxAttempts = edgeCount * 5;
-
-  while (edges.length < edgeCount && attempts < maxAttempts) {
-    attempts++;
-    const source = Math.floor(Math.random() * nodeCount);
-    const target = Math.floor(Math.random() * nodeCount);
-    if (source === target) continue;
+  
+  // Grid layout parameters matching generateNodes
+  const cols = 10;
+  
+  // Helper to add edge
+  const addEdge = (source: number, target: number) => {
+    if (target >= nodeCount) return;
+    
     const key = `${Math.min(source, target)}-${Math.max(source, target)}`;
-    if (usedPairs.has(key)) continue;
+    if (usedPairs.has(key)) return;
+    
     usedPairs.add(key);
-
     const edgeType = randomPick([...EDGE_TYPES]);
     const duration = 2 + (edges.length % 30) / 10;
-
+    
     edges.push({
       id: `edge-${edges.length}`,
       source: `node-${source}`,
@@ -86,6 +86,43 @@ export function generateEdges(nodeCount: number, maxEdges?: number): Edge[] {
       type: 'animated',
       data: { edgeType, duration },
     });
+  };
+
+  // 1. First pass: Connect adjacent nodes (Right and Down) to form a grid-like structure
+  // We iterate until we reach the desired edge count or run out of nodes
+  for (let i = 0; i < nodeCount && edges.length < edgeCount; i++) {
+    const row = Math.floor(i / cols);
+    const col = i % cols;
+    
+    // Try connecting to the right (if not last column)
+    if (col < cols - 1) {
+      if (Math.random() < 0.7) { // 70% chance
+        addEdge(i, i + 1);
+      }
+    }
+    
+    // Try connecting down (if not last row)
+    if (edges.length < edgeCount && Math.random() < 0.7) {
+      addEdge(i, i + cols);
+    }
+  }
+
+  // 2. Second pass: If we still need edges, add some diagonal or random local connections
+  let attempts = 0;
+  const maxAttempts = nodeCount * 2;
+  
+  while (edges.length < edgeCount && attempts < maxAttempts) {
+    attempts++;
+    const source = Math.floor(Math.random() * nodeCount);
+    // Pick a target that is somewhat close (within +/- 2 rows/cols)
+    // But for simplicity, let's just pick random close indices
+    const offset = Math.floor(Math.random() * 22) - 11; // -11 to +11
+    if (offset === 0) continue;
+    
+    const target = source + offset;
+    if (target >= 0 && target < nodeCount && target !== source) {
+      addEdge(source, target);
+    }
   }
 
   return edges;

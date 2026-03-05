@@ -137,11 +137,22 @@ body {
   background: #14142a;
   border: 1px solid #1e1e32;
   border-radius: 12px;
-  overflow: hidden;
+  /* overflow: hidden;  <-- Removed to allow Handles to be visible */
   position: relative;
   cursor: pointer;
   display: flex;
   flex-direction: column;
+}
+
+.custom-node .node-thumbnail {
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+}
+
+/* Ensure bottom corners are rounded if node body has background or content */
+.custom-node .node-body {
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
 }
 
 .custom-node:hover {
